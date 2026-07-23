@@ -1,0 +1,486 @@
+import 'package:flutter/material.dart';
+import '../../../core/theme/app_theme.dart';
+
+class MemberProfileScreen extends StatelessWidget {
+  final String name;
+
+  const MemberProfileScreen({super.key, required this.name});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          'Vedic Oasis',
+          style: theme.textTheme.headlineMedium?.copyWith(
+            color: AppTheme.primary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        centerTitle: true,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: Column(
+          children: [
+            // Header Section
+            Column(
+              children: [
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      width: 128,
+                      height: 128,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: AppTheme.surface, width: 4),
+                        boxShadow: AppTheme.softShadow,
+                        color: AppTheme.surfaceContainer,
+                      ),
+                      child: Center(
+                        child: Text(
+                          name.isNotEmpty ? name[0] : '?',
+                          style: const TextStyle(fontSize: 48, color: AppTheme.onSurfaceVariant),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      bottom: -8,
+                      right: -8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppTheme.secondary,
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(color: AppTheme.surface, width: 2),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.school, size: 14, color: AppTheme.onSecondary),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Student',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.onSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  name,
+                  style: theme.textTheme.displayLarge?.copyWith(
+                    color: AppTheme.onSurface,
+                    fontSize: 32,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '2nd Year • Study Circle A • Core Volunteer',
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: AppTheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surfaceContainerLow,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: AppTheme.outlineVariant.withValues(alpha: 0.5)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 10,
+                        height: 10,
+                        decoration: const BoxDecoration(
+                          color: AppTheme.secondary,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Present',
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: AppTheme.onSurface,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 32),
+
+            // Information Card
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppTheme.surfaceContainerLowest,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: AppTheme.softShadow,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Member Details',
+                    style: theme.textTheme.titleLarge?.copyWith(color: AppTheme.onSurface),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _DetailItem(label: 'COLLEGE', value: 'National Institute of Tech'),
+                            const SizedBox(height: 16),
+                            _DetailItem(label: 'MEMBER TYPE', value: 'Student'),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _DetailItem(label: 'YEAR', value: 'Sophomore (2nd)'),
+                            const SizedBox(height: 16),
+                            _DetailItem(label: 'GROUP', value: 'Study Circle A'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Assigned Tasks
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Assigned Tasks', style: theme.textTheme.titleLarge),
+                TextButton(
+                  onPressed: () {},
+                  child: Text(
+                    'View All',
+                    style: theme.textTheme.labelLarge?.copyWith(color: AppTheme.primary),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: _TaskCard(
+                    title: 'Prepare presentation for Sunday meeting',
+                    priority: 'High',
+                    dueDate: 'Oct 24',
+                    status: 'In Progress',
+                    icon: Icons.pending_actions,
+                    iconColor: AppTheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _TaskCard(
+                    title: 'Coordinate book distribution',
+                    priority: 'Normal',
+                    dueDate: 'Oct 20',
+                    status: 'Completed',
+                    icon: Icons.check_circle,
+                    iconColor: AppTheme.secondary,
+                    isCompleted: true,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // Recent Activity
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppTheme.surfaceContainerLowest,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: AppTheme.softShadow,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Recent Activity',
+                    style: theme.textTheme.titleLarge?.copyWith(color: AppTheme.onSurface),
+                  ),
+                  const SizedBox(height: 24),
+                  _ActivityTimelineItem(
+                    icon: Icons.task_alt,
+                    content: 'Completed task "Coordinate book distribution"',
+                    time: '2 days ago',
+                    isFirst: true,
+                  ),
+                  _ActivityTimelineItem(
+                    icon: Icons.group_add,
+                    content: 'Assigned to Study Circle A',
+                    time: '1 month ago',
+                  ),
+                  _ActivityTimelineItem(
+                    icon: Icons.person_add,
+                    content: 'Joined Vedic Oasis',
+                    time: '6 months ago',
+                    isLast: true,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 32),
+
+            // Bottom Actions
+            Column(
+              children: [
+                ElevatedButton.icon(
+                  onPressed: () {},
+                  icon: const Icon(Icons.add_task),
+                  label: const Text('Assign Task'),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {},
+                        icon: const Icon(Icons.group_add),
+                        label: const Text('Group'),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {},
+                        icon: const Icon(Icons.edit),
+                        label: const Text('Edit'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DetailItem extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _DetailItem({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: AppTheme.onSurfaceVariant,
+                letterSpacing: 1.2,
+              ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: AppTheme.onSurface,
+              ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TaskCard extends StatelessWidget {
+  final String title;
+  final String priority;
+  final String dueDate;
+  final String status;
+  final IconData icon;
+  final Color iconColor;
+  final bool isCompleted;
+
+  const _TaskCard({
+    required this.title,
+    required this.priority,
+    required this.dueDate,
+    required this.status,
+    required this.icon,
+    required this.iconColor,
+    this.isCompleted = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 160,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.outlineVariant.withValues(alpha: 0.3)),
+        boxShadow: AppTheme.softShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: isCompleted ? AppTheme.surfaceVariant : AppTheme.errorContainer,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  priority,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: isCompleted ? AppTheme.onSurfaceVariant : AppTheme.onErrorContainer,
+                  ),
+                ),
+              ),
+              Icon(icon, size: 20, color: iconColor),
+            ],
+          ),
+          const Spacer(),
+          Text(
+            title,
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Due: $dueDate',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppTheme.onSurfaceVariant,
+                    ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isCompleted ? AppTheme.secondaryContainer : AppTheme.surfaceContainer,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  status,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: isCompleted ? AppTheme.onSecondaryContainer : AppTheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActivityTimelineItem extends StatelessWidget {
+  final IconData icon;
+  final String content;
+  final String time;
+  final bool isFirst;
+  final bool isLast;
+
+  const _ActivityTimelineItem({
+    required this.icon,
+    required this.content,
+    required this.time,
+    this.isFirst = false,
+    this.isLast = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Column(
+          children: [
+            Container(
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                color: isFirst ? AppTheme.primaryContainer : AppTheme.surfaceVariant,
+                shape: BoxShape.circle,
+                border: Border.all(color: AppTheme.surfaceContainerLowest, width: 2),
+              ),
+              child: Icon(
+                icon,
+                size: 14,
+                color: isFirst ? AppTheme.onPrimaryContainer : AppTheme.onSurfaceVariant,
+              ),
+            ),
+            if (!isLast)
+              Container(
+                width: 2,
+                height: 48,
+                color: AppTheme.surfaceVariant,
+              ),
+          ],
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(top: 2, bottom: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(content, style: Theme.of(context).textTheme.bodyMedium),
+                const SizedBox(height: 4),
+                Text(
+                  time,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: AppTheme.onSurfaceVariant,
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
