@@ -1,26 +1,48 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/providers/auth_provider.dart';
+import '../app_drawer.dart';
+import '../auth/members_management_screen.dart';
 import 'member_profile_screen.dart';
 
-class MembersScreen extends StatefulWidget {
+class MembersScreen extends ConsumerStatefulWidget {
   const MembersScreen({super.key});
 
   @override
-  State<MembersScreen> createState() => _MembersScreenState();
+  ConsumerState<MembersScreen> createState() => _MembersScreenState();
 }
 
-class _MembersScreenState extends State<MembersScreen> {
+class _MembersScreenState extends ConsumerState<MembersScreen> {
   final _searchController = TextEditingController();
-  String _selectedFilter = 'All';
+  bool _isWorkingOnly = false;
+  Set<String> _selectedYears = {};
+  Set<String> _selectedGroups = {};
 
-  final List<String> _filters = [
-    'All',
-    'Student',
-    'Working',
-    'Group',
-    'Year',
-    'Role'
+  final List<String> _yearOptions = [
+    '<1st year',
+    '1st year',
+    'second year',
+    'third year',
+    'fourth year',
+    '>4th year'
   ];
+
+  final List<String> _groupOptions = [
+    'sahadev',
+    'nakul',
+    'arjun',
+    'bhim',
+    'yudhistir'
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(() {
+      setState(() {});
+    });
+  }
 
   @override
   void dispose() {
@@ -28,16 +50,61 @@ class _MembersScreenState extends State<MembersScreen> {
     super.dispose();
   }
 
+  List<Map<String, dynamic>> get _filteredMembers {
+    final query = _searchController.text.toLowerCase();
+    return _mockMembers.where((member) {
+      // 1. Search matching
+      final matchesSearch = query.isEmpty ||
+          (member['name'] as String).toLowerCase().contains(query) ||
+          (member['details'] as String).toLowerCase().contains(query);
+
+      // 2. Filter matching
+      bool matchesFilter = true;
+      
+      if (_isWorkingOnly) {
+        if (member['type']?.toString().toLowerCase() != 'working') {
+          matchesFilter = false;
+        }
+      }
+
+      final details = (member['details'] as String).toLowerCase();
+
+      if (_selectedYears.isNotEmpty && matchesFilter) {
+        // Simplified matching for mock data
+        bool matchesYear = false;
+        for (final year in _selectedYears) {
+          if (details.contains(year.toLowerCase()) || year.contains('1st') && details.contains('fy') || year.contains('second') && details.contains('sy') || year.contains('third') && details.contains('ty')) {
+            matchesYear = true;
+            break;
+          }
+        }
+        if (!matchesYear) matchesFilter = false;
+      }
+
+      if (_selectedGroups.isNotEmpty && matchesFilter) {
+        bool matchesGroup = false;
+        for (final group in _selectedGroups) {
+          if (details.contains(group.toLowerCase())) {
+            matchesGroup = true;
+            break;
+          }
+        }
+        if (!matchesGroup) matchesFilter = false;
+      }
+
+      return matchesSearch && matchesFilter;
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final authState = ref.watch(authProvider);
+    final displayedMembers = _filteredMembers;
 
     return Scaffold(
+      drawer: const AppDrawer(),
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.menu),
-          onPressed: () {},
-        ),
         title: Text(
           'Vedic Oasis',
           style: theme.textTheme.headlineMedium?.copyWith(
@@ -125,50 +192,56 @@ class _MembersScreenState extends State<MembersScreen> {
 
                   // Filter Chips
                   SizedBox(
-                    height: 32,
-                    child: ListView.separated(
+                    height: 40,
+                    child: ListView(
                       scrollDirection: Axis.horizontal,
-                      itemCount: _filters.length,
-                      separatorBuilder: (context, index) =>
-                          const SizedBox(width: 8),
-                      itemBuilder: (context, index) {
-                        final filter = _filters[index];
-                        final isSelected = _selectedFilter == filter;
-                        return InkWell(
-                          onTap: () {
-                            setState(() {
-                              _selectedFilter = filter;
-                            });
+                      children: [
+                        FilterChip(
+                          label: const Text('Working', style: TextStyle(color: Colors.black)),
+                          selected: _isWorkingOnly,
+                          onSelected: (val) {
+                            setState(() => _isWorkingOnly = val);
                           },
-                          borderRadius: BorderRadius.circular(16),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? AppTheme.primaryContainer
-                                  : AppTheme.surfaceContainerLowest,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: isSelected
-                                    ? Colors.transparent
-                                    : AppTheme.outlineVariant,
-                              ),
-                              boxShadow: isSelected ? AppTheme.softShadow : null,
-                            ),
-                            child: Text(
-                              filter,
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                                color: isSelected
-                                    ? AppTheme.onPrimaryContainer
-                                    : AppTheme.onSurface,
-                              ),
+                          selectedColor: AppTheme.primaryContainer,
+                          backgroundColor: AppTheme.surfaceContainerLowest,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: BorderSide(
+                              color: _isWorkingOnly ? Colors.transparent : AppTheme.outlineVariant,
                             ),
                           ),
-                        );
-                      },
+                        ),
+                        const SizedBox(width: 8),
+                        ActionChip(
+                          label: Text(
+                            _selectedYears.isEmpty ? 'Year' : 'Year (${_selectedYears.length})',
+                            style: const TextStyle(color: Colors.black),
+                          ),
+                          backgroundColor: _selectedYears.isNotEmpty ? AppTheme.primaryContainer : AppTheme.surfaceContainerLowest,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: BorderSide(
+                              color: _selectedYears.isNotEmpty ? Colors.transparent : AppTheme.outlineVariant,
+                            ),
+                          ),
+                          onPressed: _showYearFilterDialog,
+                        ),
+                        const SizedBox(width: 8),
+                        ActionChip(
+                          label: Text(
+                            _selectedGroups.isEmpty ? 'Group' : 'Group (${_selectedGroups.length})',
+                            style: const TextStyle(color: Colors.black),
+                          ),
+                          backgroundColor: _selectedGroups.isNotEmpty ? AppTheme.primaryContainer : AppTheme.surfaceContainerLowest,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: BorderSide(
+                              color: _selectedGroups.isNotEmpty ? Colors.transparent : AppTheme.outlineVariant,
+                            ),
+                          ),
+                          onPressed: _showGroupFilterDialog,
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -177,34 +250,170 @@ class _MembersScreenState extends State<MembersScreen> {
           ),
 
           // Member List
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: _MemberCard(
-                      name: _mockMembers[index]['name']!,
-                      type: _mockMembers[index]['type']!,
-                      details: _mockMembers[index]['details']!,
-                      initials: _mockMembers[index]['initials']!,
+          if (displayedMembers.isEmpty)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.group_off, size: 64, color: AppTheme.outlineVariant),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No members found',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        color: AppTheme.onSurfaceVariant,
+                      ),
                     ),
-                  );
-                },
-                childCount: _mockMembers.length,
+                    if (authState.hasPermission('manage_members') || ['Project Manager', 'Overall Coordinator'].contains(authState.currentRole?.name)) ...[
+                      const SizedBox(height: 24),
+                      FilledButton.icon(
+                        onPressed: () {
+                          showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            useSafeArea: true,
+                            backgroundColor: AppTheme.surfaceContainerLowest,
+                            builder: (_) => const MemberFormSheet(member: null),
+                          );
+                        },
+                        icon: const Icon(Icons.add),
+                        label: const Text('Add Member'),
+                      ),
+                    ]
+                  ],
+                ),
+              ),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: _MemberCard(
+                        name: displayedMembers[index]['name'] as String,
+                        type: displayedMembers[index]['type'] as String,
+                        details: displayedMembers[index]['details'] as String,
+                        initials: displayedMembers[index]['initials'] as String,
+                        isPendingSync: displayedMembers[index]['isPendingSync'] as bool? ?? false,
+                      ),
+                    );
+                  },
+                  childCount: displayedMembers.length,
+                ),
               ),
             ),
-          ),
           
           // Bottom padding for FAB
           const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {},
-        child: const Icon(Icons.add),
-      ),
+      floatingActionButton: authState.hasPermission('manage_members') || 
+                            ['Project Manager', 'Overall Coordinator'].contains(authState.currentRole?.name)
+          ? FloatingActionButton(
+              onPressed: () {
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  useSafeArea: true,
+                  backgroundColor: AppTheme.surfaceContainerLowest,
+                  builder: (_) => const MemberFormSheet(member: null),
+                );
+              },
+              child: const Icon(Icons.add),
+            )
+          : null,
+    );
+  }
+
+  void _showYearFilterDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: const Text('Filter by Year'),
+              backgroundColor: AppTheme.surfaceContainerLowest,
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: _yearOptions.map((year) {
+                    return CheckboxListTile(
+                      title: Text(year),
+                      value: _selectedYears.contains(year),
+                      onChanged: (val) {
+                        setStateDialog(() {
+                          if (val == true) {
+                            _selectedYears.add(year);
+                          } else {
+                            _selectedYears.remove(year);
+                          }
+                        });
+                        setState(() {});
+                      },
+                    );
+                  }).toList(),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Done'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showGroupFilterDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: const Text('Filter by Group'),
+              backgroundColor: AppTheme.surfaceContainerLowest,
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: _groupOptions.map((group) {
+                    return CheckboxListTile(
+                      title: Text(
+                        group[0].toUpperCase() + group.substring(1),
+                      ),
+                      value: _selectedGroups.contains(group),
+                      onChanged: (val) {
+                        setStateDialog(() {
+                          if (val == true) {
+                            _selectedGroups.add(group);
+                          } else {
+                            _selectedGroups.remove(group);
+                          }
+                        });
+                        setState(() {});
+                      },
+                    );
+                  }).toList(),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Done'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }
@@ -214,12 +423,14 @@ class _MemberCard extends StatelessWidget {
   final String type;
   final String details;
   final String initials;
+  final bool isPendingSync;
 
   const _MemberCard({
     required this.name,
     required this.type,
     required this.details,
     required this.initials,
+    this.isPendingSync = false,
   });
 
   @override
@@ -309,6 +520,13 @@ class _MemberCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
+            // Sync Indicator
+            Icon(
+              isPendingSync ? Icons.cloud_upload : Icons.cloud_done,
+              size: 16,
+              color: isPendingSync ? AppTheme.primary : AppTheme.outlineVariant,
+            ),
+            const SizedBox(width: 8),
             const Icon(
               Icons.chevron_right,
               color: AppTheme.outlineVariant,
@@ -332,7 +550,8 @@ const _mockMembers = [
     'name': 'Ananya Sharma',
     'type': 'Working',
     'details': 'Software Eng • Group C',
-    'initials': 'AS'
+    'initials': 'AS',
+    'isPendingSync': true,
   },
   {
     'name': 'Rahul Verma',

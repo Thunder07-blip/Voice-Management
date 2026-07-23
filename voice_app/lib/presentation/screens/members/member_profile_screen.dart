@@ -3,8 +3,13 @@ import '../../../core/theme/app_theme.dart';
 
 class MemberProfileScreen extends StatelessWidget {
   final String name;
+  final bool isSelf;
 
-  const MemberProfileScreen({super.key, required this.name});
+  const MemberProfileScreen({
+    super.key, 
+    required this.name,
+    this.isSelf = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -257,35 +262,36 @@ class MemberProfileScreen extends StatelessWidget {
             const SizedBox(height: 32),
 
             // Bottom Actions
-            Column(
-              children: [
-                ElevatedButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(Icons.add_task),
-                  label: const Text('Assign Task'),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () {},
-                        icon: const Icon(Icons.group_add),
-                        label: const Text('Group'),
+            if (!isSelf)
+              Column(
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: () {},
+                    icon: const Icon(Icons.add_task),
+                    label: const Text('Assign Task'),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () {},
+                          icon: const Icon(Icons.group_add),
+                          label: const Text('Group'),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () {},
-                        icon: const Icon(Icons.edit),
-                        label: const Text('Edit'),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () {},
+                          icon: const Icon(Icons.edit),
+                          label: const Text('Edit'),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+                    ],
+                  ),
+                ],
+              ),
           ],
         ),
       ),
@@ -386,8 +392,11 @@ class _TaskCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            runSpacing: 4,
+            spacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Text(
                 'Due: $dueDate',

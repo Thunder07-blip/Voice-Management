@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/providers/app_providers.dart';
+import '../../../core/providers/auth_provider.dart';
+import '../../../data/local/database.dart';
+import '../app_drawer.dart';
+import 'create_task_sheet.dart';
 
-class TasksScreen extends StatefulWidget {
+class TasksScreen extends ConsumerStatefulWidget {
   const TasksScreen({super.key});
 
   @override
-  State<TasksScreen> createState() => _TasksScreenState();
+  ConsumerState<TasksScreen> createState() => _TasksScreenState();
 }
 
-class _TasksScreenState extends State<TasksScreen> {
+class _TasksScreenState extends ConsumerState<TasksScreen> {
   final _searchController = TextEditingController();
   String _selectedFilter = 'All';
 
@@ -21,21 +27,56 @@ class _TasksScreenState extends State<TasksScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(() {
+      setState(() {});
+    });
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
   }
 
+  List<Task> _getFilteredTasks(List<Task> tasks) {
+    final query = _searchController.text.toLowerCase();
+    return tasks.where((task) {
+      // 1. Search matching
+      final matchesSearch = query.isEmpty ||
+          task.title.toLowerCase().contains(query) ||
+          (task.description?.toLowerCase().contains(query) ?? false);
+
+      // 2. Filter chip matching
+      bool matchesFilter = true;
+      if (_selectedFilter != 'All') {
+        if (_selectedFilter == 'Pending') {
+          matchesFilter = task.status == 'Pending';
+        } else if (_selectedFilter == 'In Progress') {
+          matchesFilter = task.status == 'In Progress';
+        } else if (_selectedFilter == 'Completed') {
+          matchesFilter = task.status == 'Completed';
+        } else if (_selectedFilter == 'High Priority') {
+          matchesFilter = task.priority == 'High';
+        }
+      }
+
+      return matchesSearch && matchesFilter;
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final authState = ref.watch(authProvider);
+    
+    // Watch the Drift tasks stream
+    final tasksAsync = ref.watch(tasksStreamProvider);
 
     return Scaffold(
+      drawer: const AppDrawer(),
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.menu),
-          onPressed: () {},
-        ),
         title: Text(
           'Tasks',
           style: theme.textTheme.headlineMedium?.copyWith(
@@ -149,45 +190,79 @@ class _TasksScreenState extends State<TasksScreen> {
 
           // Task List
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              children: [
-                _TaskListItem(
-                  title: 'Prepare Monthly Community Report',
-                  description:
-                      'Compile all metrics from the last month regarding community engagement, event attendance, and budget usage. Needs review before Friday.',
-                  priority: 'High',
-                  dueDate: 'Tomorrow, 5:00 PM',
-                  status: 'In Progress',
-                ),
-                const SizedBox(height: 16),
-                _TaskListItem(
-                  title: 'Organize Weekend Workshop Material',
-                  description:
-                      'Gather all handouts and projectors for the upcoming mindfulness workshop.',
-                  priority: 'Medium',
-                  dueDate: 'Oct 28',
-                  status: 'Pending',
-                ),
-                const SizedBox(height: 16),
-                _TaskListItem(
-                  title: 'Update Community Guidelines',
-                  description: '',
-                  priority: 'Medium',
-                  dueDate: 'Completed: Oct 24',
-                  status: 'Completed',
-                  isCompleted: true,
-                ),
-                const SizedBox(height: 100), // padding for FAB
-              ],
+            child: tasksAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (err, stack) => Center(child: Text('Error: $err')),
+              data: (allTasks) {
+                // If there are no tasks in Drift, we fallback to mock tasks for demonstration
+                // In production, we'd just show empty state.
+                final baseTasks = allTasks.isEmpty ? _convertMockTasks() : allTasks;
+                final displayedTasks = _getFilteredTasks(baseTasks);
+
+                if (displayedTasks.isEmpty) {
+                  return const Center(child: Text('No tasks found.'));
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  itemCount: displayedTasks.length + 1, // +1 for FAB padding
+                  itemBuilder: (context, index) {
+                    if (index == displayedTasks.length) {
+                      return const SizedBox(height: 100); // padding for FAB
+                    }
+                    
+                    final task = displayedTasks[index];
+                    // Check outbox to see if this task is pending sync
+                    final isPendingSync = ref.watch(isPendingSyncProvider(task.id));
+
+                    final canToggle = ['Project Manager', 'Overall Coordinator', 'Assistant Overall Coordinator'].contains(authState.currentRole?.name);
+
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: _TaskListItem(
+                        title: task.title,
+                        description: task.description ?? '',
+                        priority: task.priority,
+                        dueDate: task.dueDate ?? '',
+                        status: task.status,
+                        isCompleted: task.status == 'Completed',
+                        isPendingSync: isPendingSync,
+                        canToggle: canToggle,
+                        onToggle: canToggle ? () async {
+                          final db = ref.read(databaseProvider);
+                          final newStatus = task.status == 'Completed' ? 'Pending' : 'Completed';
+                          final updated = task.copyWith(
+                            status: newStatus,
+                            updatedAt: DateTime.now(),
+                          );
+                          await db.update(db.tasksTable).replace(updated);
+                        } : null,
+                      ),
+                    );
+                  },
+                );
+              },
             ),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {},
-        child: const Icon(Icons.add),
-      ),
+      floatingActionButton: authState.hasPermission('CREATE_TASK')
+          ? FloatingActionButton(
+              onPressed: () {
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  useSafeArea: true,
+                  backgroundColor: AppTheme.surfaceContainerLowest,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                  ),
+                  builder: (context) => const CreateTaskSheet(),
+                );
+              },
+              child: const Icon(Icons.add),
+            )
+          : null,
     );
   }
 }
@@ -199,6 +274,9 @@ class _TaskListItem extends StatelessWidget {
   final String dueDate;
   final String status;
   final bool isCompleted;
+  final bool isPendingSync;
+  final bool canToggle;
+  final VoidCallback? onToggle;
 
   const _TaskListItem({
     required this.title,
@@ -207,6 +285,9 @@ class _TaskListItem extends StatelessWidget {
     required this.dueDate,
     required this.status,
     this.isCompleted = false,
+    this.isPendingSync = false,
+    this.canToggle = false,
+    this.onToggle,
   });
 
   @override
@@ -230,23 +311,27 @@ class _TaskListItem extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.only(top: 4.0),
-            child: Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                color: isCompleted ? AppTheme.secondary : Colors.transparent,
-                border: Border.all(
-                  color: isCompleted
-                      ? Colors.transparent
-                      : AppTheme.outlineVariant,
+            child: InkWell(
+              onTap: onToggle,
+              borderRadius: BorderRadius.circular(4),
+              child: Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: isCompleted ? AppTheme.secondary : Colors.transparent,
+                  border: Border.all(
+                    color: isCompleted
+                        ? Colors.transparent
+                        : AppTheme.outlineVariant,
+                  ),
+                  borderRadius: BorderRadius.circular(4),
                 ),
-                borderRadius: BorderRadius.circular(4),
+                child: isCompleted
+                    ? const Icon(Icons.check,
+                        size: 16, color: AppTheme.onSecondary)
+                    : const Icon(Icons.check,
+                        size: 16, color: Colors.transparent),
               ),
-              child: isCompleted
-                  ? const Icon(Icons.check,
-                      size: 16, color: AppTheme.onSecondary)
-                  : const Icon(Icons.check,
-                      size: 16, color: Colors.transparent),
             ),
           ),
           const SizedBox(width: 16),
@@ -272,6 +357,14 @@ class _TaskListItem extends StatelessWidget {
                             ),
                       ),
                     ),
+                    const SizedBox(width: 8),
+                    // Sync Indicator
+                    Icon(
+                      isPendingSync ? Icons.cloud_upload : Icons.cloud_done,
+                      size: 16,
+                      color: isPendingSync ? AppTheme.primary : AppTheme.outlineVariant,
+                    ),
+                    const SizedBox(width: 8),
                     if (!isCompleted)
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -353,4 +446,49 @@ class _TaskListItem extends StatelessWidget {
       ),
     );
   }
+}
+
+// Mock data
+const _mockTasks = [
+  {
+    'title': 'Prepare Monthly Community Report',
+    'description': 'Compile all metrics from the last month regarding community engagement, event attendance, and budget usage. Needs review before Friday.',
+    'priority': 'High',
+    'dueDate': 'Tomorrow, 5:00 PM',
+    'status': 'In Progress',
+    'isCompleted': false,
+    'isPendingSync': false,
+  },
+  {
+    'title': 'Organize Weekend Workshop Material',
+    'description': 'Gather all handouts and projectors for the upcoming mindfulness workshop.',
+    'priority': 'Medium',
+    'dueDate': 'Oct 28',
+    'status': 'Pending',
+    'isCompleted': false,
+    'isPendingSync': true,
+  },
+  {
+    'title': 'Update Community Guidelines',
+    'description': '',
+    'priority': 'Medium',
+    'dueDate': 'Completed: Oct 24',
+    'status': 'Completed',
+    'isCompleted': true,
+    'isPendingSync': false,
+  },
+];
+
+// Helper to convert mock data to Drift Task objects for visual fallback
+List<Task> _convertMockTasks() {
+  return _mockTasks.map((t) => Task(
+    id: t['title'] as String,
+    title: t['title'] as String,
+    description: t['description'] as String,
+    priority: t['priority'] as String,
+    status: t['status'] as String,
+    dueDate: t['dueDate'] as String,
+    createdAt: DateTime.now(),
+    updatedAt: DateTime.now(),
+  )).toList();
 }

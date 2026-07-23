@@ -34,12 +34,14 @@ class AppTheme {
 
   // Surfaces
   static const Color surface = Color(0xFFF8F9FF);
+  static const Color surfaceVariant = Color(0xFFD9E3F4);
   static const Color onSurface = Color(0xFF121C28);
   static const Color onSurfaceVariant = Color(0xFF534434);
   static const Color surfaceContainerLowest = Color(0xFFFFFFFF);
   static const Color surfaceContainer = Color(0xFFE5EEFF);
   static const Color surfaceContainerHigh = Color(0xFFDFE9FA);
   static const Color surfaceContainerHighest = Color(0xFFD9E3F4);
+  static const Color surfaceContainerLow = Color(0xFFEEF4FF);
   static const Color background = Color(0xFFF8F9FF);
   static const Color onBackground = Color(0xFF121C28);
 
