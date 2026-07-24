@@ -74,14 +74,21 @@ class SyncEngine {
       for (final op in pendingOps) {
         try {
           final data = jsonDecode(op.payloadJson) as Map<String, dynamic>;
+          
+          // Convert camelCase keys to snake_case for Postgres
+          final snakeData = data.map((k, v) {
+            final snakeKey = k.replaceAllMapped(RegExp(r'[A-Z]'), (match) => '_${match.group(0)!.toLowerCase()}');
+            return MapEntry(snakeKey, v);
+          });
+          
           final table = op.targetTable;
           final operation = op.operation;
 
           if (operation == 'delete') {
-            await _supabase.from(table).delete().eq('id', data['id'] ?? '');
+            await _supabase.from(table).delete().eq('id', snakeData['id'] ?? '');
           } else {
             // upsert handles both insert and update
-            await _supabase.from(table).upsert(data);
+            await _supabase.from(table).upsert(snakeData);
           }
 
           // Successfully synced — remove from outbox
