@@ -30,7 +30,6 @@ CREATE TABLE public.members (
     pin_hash TEXT NOT NULL,
     name TEXT NOT NULL,
     member_type TEXT NOT NULL DEFAULT 'student',
-    room_number TEXT,
     college TEXT,
     course TEXT,
     contact_number TEXT,
