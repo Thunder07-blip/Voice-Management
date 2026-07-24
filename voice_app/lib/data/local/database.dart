@@ -186,6 +186,20 @@ class AcknowledgementsTable extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+// ── Activities ──────────────────────────────────────────────────────
+
+@DataClassName('Activity')
+class ActivitiesTable extends Table {
+  TextColumn get id => text()();
+  TextColumn get content => text()(); // "Rahul Patil returned from leave."
+  TextColumn get relatedMemberId => text().nullable()(); // ID of the member who did this
+  TextColumn get category => text()(); // e.g. "leave", "task", "member"
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 // ── Database Class ────────────────────────────────────────────────
 
 @DriftDatabase(tables: [
@@ -201,12 +215,13 @@ class AcknowledgementsTable extends Table {
   HealthRecordsTable,
   OutboxOperations,
   AcknowledgementsTable,
+  ActivitiesTable,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration {
@@ -240,6 +255,9 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 8) {
           try { await m.addColumn(tasksTable, tasksTable.assignedTo); } catch (_) {}
+        }
+        if (from < 10) {
+          try { await m.createTable(activitiesTable); } catch (_) {}
         }
       },
     );

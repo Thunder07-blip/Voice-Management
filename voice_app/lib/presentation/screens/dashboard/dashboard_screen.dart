@@ -17,6 +17,7 @@ import '../kitchen/meal_planning_screen.dart';
 import 'create_acknowledgement_sheet.dart';
 import 'package:intl/intl.dart';
 import 'widgets/status_banner.dart';
+import 'widgets/recent_activities_feed.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -469,6 +470,11 @@ class DashboardScreen extends ConsumerWidget {
                 );
               },
             ),
+            const SizedBox(height: 32),
+            
+            // Recent Activities Feed
+            const RecentActivitiesFeed(),
+            
             const SizedBox(height: 32),
           ],
         ),

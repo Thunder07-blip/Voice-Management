@@ -5385,6 +5385,375 @@ class AcknowledgementsTableCompanion extends UpdateCompanion<Acknowledgement> {
   }
 }
 
+class $ActivitiesTableTable extends ActivitiesTable
+    with TableInfo<$ActivitiesTableTable, Activity> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ActivitiesTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _contentMeta = const VerificationMeta(
+    'content',
+  );
+  @override
+  late final GeneratedColumn<String> content = GeneratedColumn<String>(
+    'content',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _relatedMemberIdMeta = const VerificationMeta(
+    'relatedMemberId',
+  );
+  @override
+  late final GeneratedColumn<String> relatedMemberId = GeneratedColumn<String>(
+    'related_member_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _categoryMeta = const VerificationMeta(
+    'category',
+  );
+  @override
+  late final GeneratedColumn<String> category = GeneratedColumn<String>(
+    'category',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    content,
+    relatedMemberId,
+    category,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'activities_table';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Activity> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('content')) {
+      context.handle(
+        _contentMeta,
+        content.isAcceptableOrUnknown(data['content']!, _contentMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_contentMeta);
+    }
+    if (data.containsKey('related_member_id')) {
+      context.handle(
+        _relatedMemberIdMeta,
+        relatedMemberId.isAcceptableOrUnknown(
+          data['related_member_id']!,
+          _relatedMemberIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('category')) {
+      context.handle(
+        _categoryMeta,
+        category.isAcceptableOrUnknown(data['category']!, _categoryMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_categoryMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Activity map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Activity(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      content: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}content'],
+      )!,
+      relatedMemberId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}related_member_id'],
+      ),
+      category: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $ActivitiesTableTable createAlias(String alias) {
+    return $ActivitiesTableTable(attachedDatabase, alias);
+  }
+}
+
+class Activity extends DataClass implements Insertable<Activity> {
+  final String id;
+  final String content;
+  final String? relatedMemberId;
+  final String category;
+  final DateTime createdAt;
+  const Activity({
+    required this.id,
+    required this.content,
+    this.relatedMemberId,
+    required this.category,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['content'] = Variable<String>(content);
+    if (!nullToAbsent || relatedMemberId != null) {
+      map['related_member_id'] = Variable<String>(relatedMemberId);
+    }
+    map['category'] = Variable<String>(category);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  ActivitiesTableCompanion toCompanion(bool nullToAbsent) {
+    return ActivitiesTableCompanion(
+      id: Value(id),
+      content: Value(content),
+      relatedMemberId: relatedMemberId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(relatedMemberId),
+      category: Value(category),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory Activity.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Activity(
+      id: serializer.fromJson<String>(json['id']),
+      content: serializer.fromJson<String>(json['content']),
+      relatedMemberId: serializer.fromJson<String?>(json['relatedMemberId']),
+      category: serializer.fromJson<String>(json['category']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'content': serializer.toJson<String>(content),
+      'relatedMemberId': serializer.toJson<String?>(relatedMemberId),
+      'category': serializer.toJson<String>(category),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  Activity copyWith({
+    String? id,
+    String? content,
+    Value<String?> relatedMemberId = const Value.absent(),
+    String? category,
+    DateTime? createdAt,
+  }) => Activity(
+    id: id ?? this.id,
+    content: content ?? this.content,
+    relatedMemberId: relatedMemberId.present
+        ? relatedMemberId.value
+        : this.relatedMemberId,
+    category: category ?? this.category,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  Activity copyWithCompanion(ActivitiesTableCompanion data) {
+    return Activity(
+      id: data.id.present ? data.id.value : this.id,
+      content: data.content.present ? data.content.value : this.content,
+      relatedMemberId: data.relatedMemberId.present
+          ? data.relatedMemberId.value
+          : this.relatedMemberId,
+      category: data.category.present ? data.category.value : this.category,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Activity(')
+          ..write('id: $id, ')
+          ..write('content: $content, ')
+          ..write('relatedMemberId: $relatedMemberId, ')
+          ..write('category: $category, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, content, relatedMemberId, category, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Activity &&
+          other.id == this.id &&
+          other.content == this.content &&
+          other.relatedMemberId == this.relatedMemberId &&
+          other.category == this.category &&
+          other.createdAt == this.createdAt);
+}
+
+class ActivitiesTableCompanion extends UpdateCompanion<Activity> {
+  final Value<String> id;
+  final Value<String> content;
+  final Value<String?> relatedMemberId;
+  final Value<String> category;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const ActivitiesTableCompanion({
+    this.id = const Value.absent(),
+    this.content = const Value.absent(),
+    this.relatedMemberId = const Value.absent(),
+    this.category = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ActivitiesTableCompanion.insert({
+    required String id,
+    required String content,
+    this.relatedMemberId = const Value.absent(),
+    required String category,
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       content = Value(content),
+       category = Value(category);
+  static Insertable<Activity> custom({
+    Expression<String>? id,
+    Expression<String>? content,
+    Expression<String>? relatedMemberId,
+    Expression<String>? category,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (content != null) 'content': content,
+      if (relatedMemberId != null) 'related_member_id': relatedMemberId,
+      if (category != null) 'category': category,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ActivitiesTableCompanion copyWith({
+    Value<String>? id,
+    Value<String>? content,
+    Value<String?>? relatedMemberId,
+    Value<String>? category,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return ActivitiesTableCompanion(
+      id: id ?? this.id,
+      content: content ?? this.content,
+      relatedMemberId: relatedMemberId ?? this.relatedMemberId,
+      category: category ?? this.category,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (content.present) {
+      map['content'] = Variable<String>(content.value);
+    }
+    if (relatedMemberId.present) {
+      map['related_member_id'] = Variable<String>(relatedMemberId.value);
+    }
+    if (category.present) {
+      map['category'] = Variable<String>(category.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ActivitiesTableCompanion(')
+          ..write('id: $id, ')
+          ..write('content: $content, ')
+          ..write('relatedMemberId: $relatedMemberId, ')
+          ..write('category: $category, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -5407,6 +5776,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   );
   late final $AcknowledgementsTableTable acknowledgementsTable =
       $AcknowledgementsTableTable(this);
+  late final $ActivitiesTableTable activitiesTable = $ActivitiesTableTable(
+    this,
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -5424,6 +5796,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     healthRecordsTable,
     outboxOperations,
     acknowledgementsTable,
+    activitiesTable,
   ];
 }
 
@@ -8260,6 +8633,210 @@ typedef $$AcknowledgementsTableTableProcessedTableManager =
       Acknowledgement,
       PrefetchHooks Function()
     >;
+typedef $$ActivitiesTableTableCreateCompanionBuilder =
+    ActivitiesTableCompanion Function({
+      required String id,
+      required String content,
+      Value<String?> relatedMemberId,
+      required String category,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+typedef $$ActivitiesTableTableUpdateCompanionBuilder =
+    ActivitiesTableCompanion Function({
+      Value<String> id,
+      Value<String> content,
+      Value<String?> relatedMemberId,
+      Value<String> category,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+
+class $$ActivitiesTableTableFilterComposer
+    extends Composer<_$AppDatabase, $ActivitiesTableTable> {
+  $$ActivitiesTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get content => $composableBuilder(
+    column: $table.content,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get relatedMemberId => $composableBuilder(
+    column: $table.relatedMemberId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get category => $composableBuilder(
+    column: $table.category,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ActivitiesTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $ActivitiesTableTable> {
+  $$ActivitiesTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get content => $composableBuilder(
+    column: $table.content,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get relatedMemberId => $composableBuilder(
+    column: $table.relatedMemberId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get category => $composableBuilder(
+    column: $table.category,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ActivitiesTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ActivitiesTableTable> {
+  $$ActivitiesTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get content =>
+      $composableBuilder(column: $table.content, builder: (column) => column);
+
+  GeneratedColumn<String> get relatedMemberId => $composableBuilder(
+    column: $table.relatedMemberId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get category =>
+      $composableBuilder(column: $table.category, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$ActivitiesTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ActivitiesTableTable,
+          Activity,
+          $$ActivitiesTableTableFilterComposer,
+          $$ActivitiesTableTableOrderingComposer,
+          $$ActivitiesTableTableAnnotationComposer,
+          $$ActivitiesTableTableCreateCompanionBuilder,
+          $$ActivitiesTableTableUpdateCompanionBuilder,
+          (
+            Activity,
+            BaseReferences<_$AppDatabase, $ActivitiesTableTable, Activity>,
+          ),
+          Activity,
+          PrefetchHooks Function()
+        > {
+  $$ActivitiesTableTableTableManager(
+    _$AppDatabase db,
+    $ActivitiesTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ActivitiesTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ActivitiesTableTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ActivitiesTableTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> content = const Value.absent(),
+                Value<String?> relatedMemberId = const Value.absent(),
+                Value<String> category = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ActivitiesTableCompanion(
+                id: id,
+                content: content,
+                relatedMemberId: relatedMemberId,
+                category: category,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String content,
+                Value<String?> relatedMemberId = const Value.absent(),
+                required String category,
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ActivitiesTableCompanion.insert(
+                id: id,
+                content: content,
+                relatedMemberId: relatedMemberId,
+                category: category,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ActivitiesTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ActivitiesTableTable,
+      Activity,
+      $$ActivitiesTableTableFilterComposer,
+      $$ActivitiesTableTableOrderingComposer,
+      $$ActivitiesTableTableAnnotationComposer,
+      $$ActivitiesTableTableCreateCompanionBuilder,
+      $$ActivitiesTableTableUpdateCompanionBuilder,
+      (
+        Activity,
+        BaseReferences<_$AppDatabase, $ActivitiesTableTable, Activity>,
+      ),
+      Activity,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -8288,4 +8865,6 @@ class $AppDatabaseManager {
       $$OutboxOperationsTableTableManager(_db, _db.outboxOperations);
   $$AcknowledgementsTableTableTableManager get acknowledgementsTable =>
       $$AcknowledgementsTableTableTableManager(_db, _db.acknowledgementsTable);
+  $$ActivitiesTableTableTableManager get activitiesTable =>
+      $$ActivitiesTableTableTableManager(_db, _db.activitiesTable);
 }

@@ -29,6 +29,7 @@ class SyncEngine {
       'members', 'tasks', 'notices', 'leaves', 'roles',
       'groups', 'permissions', 'role_permissions',
       'meal_plans', 'health_records', 'acknowledgements',
+      'activities',
     ];
 
     for (final table in tablesToSync) {

@@ -15,15 +15,27 @@ async function fixSchema() {
     await sql`ALTER TABLE notices ADD COLUMN IF NOT EXISTS posted_by TEXT;`;
     console.log('✅ Added posted_by to notices');
 
-    // Create some RLS policies for testing
-    // Enable RLS
-    await sql`ALTER TABLE members ENABLE ROW LEVEL SECURITY;`;
-    
-    // Policy: anyone can read members
+    // Create activities table
     await sql`
-      CREATE POLICY "Allow public read access on members" 
-      ON members FOR SELECT 
-      USING (true);
+      CREATE TABLE IF NOT EXISTS activities (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        content TEXT NOT NULL,
+        related_member_id UUID,
+        category TEXT NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `;
+    console.log('✅ Created activities table');
+
+    // Enable RLS on activities
+    await sql`ALTER TABLE activities ENABLE ROW LEVEL SECURITY;`;
+    
+    // Policy: anyone can read/write activities for MVP
+    await sql`
+      CREATE POLICY "Allow public access on activities" 
+      ON activities FOR ALL 
+      USING (true)
+      WITH CHECK (true);
     `.catch(e => {
         if(e.code !== '42710') throw e; // ignore if already exists
     });

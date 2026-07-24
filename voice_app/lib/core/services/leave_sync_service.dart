@@ -3,16 +3,24 @@ import 'package:uuid/uuid.dart';
 import '../../data/local/database.dart';
 import '../providers/app_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'activity_service.dart';
 
 final leaveSyncServiceProvider = Provider<LeaveSyncService>((ref) {
   final db = ref.watch(databaseProvider);
-  return LeaveSyncService(db);
+  final activityService = ref.read(activityServiceProvider);
+  return LeaveSyncService(db, activityService);
 });
 
 class LeaveSyncService {
   final AppDatabase _db;
+  final ActivityService _activityService;
 
-  LeaveSyncService(this._db);
+  LeaveSyncService(this._db, this._activityService);
+
+  Future<String> _getMemberName(String memberId) async {
+    final member = await (_db.select(_db.membersTable)..where((t) => t.id.equals(memberId))).getSingleOrNull();
+    return member?.name ?? 'A member';
+  }
 
   /// Helper to get a list of dates between start and end (inclusive)
   List<DateTime> _getDatesInRange(DateTime start, DateTime end) {
@@ -88,6 +96,13 @@ class LeaveSyncService {
         );
       }
     }
+
+    final name = await _getMemberName(leave.memberId);
+    await _activityService.logActivity(
+      content: "$name started leave.",
+      category: "leave",
+      relatedMemberId: leave.memberId,
+    );
   }
 
   /// Rule 2: Update Expected Return
@@ -197,6 +212,13 @@ class LeaveSyncService {
         }
       }
     }
+
+    final name = await _getMemberName(leave.memberId);
+    await _activityService.logActivity(
+      content: "$name returned from leave.",
+      category: "leave",
+      relatedMemberId: leave.memberId,
+    );
   }
 
   /// Approve leave. If start date is today or earlier, activate it immediately.
@@ -226,6 +248,13 @@ class LeaveSyncService {
           updatedAt: drift.Value(DateTime.now()),
         ));
     }
+
+    final name = await _getMemberName(leave.memberId);
+    await _activityService.logActivity(
+      content: "$name's leave request was approved.",
+      category: "leave",
+      relatedMemberId: leave.memberId,
+    );
   }
 
   /// Reject leave
@@ -237,5 +266,12 @@ class LeaveSyncService {
           approvedBy: drift.Value(approverId),
           updatedAt: drift.Value(DateTime.now()),
         ));
+
+    final name = await _getMemberName(leave.memberId);
+    await _activityService.logActivity(
+      content: "$name's leave request was rejected.",
+      category: "leave",
+      relatedMemberId: leave.memberId,
+    );
   }
 }
