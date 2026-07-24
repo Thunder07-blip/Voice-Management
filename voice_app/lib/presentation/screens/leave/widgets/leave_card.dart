@@ -5,6 +5,8 @@ import 'package:drift/drift.dart' as drift;
 import '../../../../core/theme/app_theme.dart';
 import '../../../../data/local/database.dart';
 import '../../../../core/providers/app_providers.dart';
+import '../../../../core/providers/auth_provider.dart';
+import '../../../../core/services/leave_sync_service.dart';
 
 class LeaveCard extends ConsumerWidget {
   final LeaveRequest leave;
@@ -145,12 +147,13 @@ class LeaveCard extends ConsumerWidget {
   }
 
   void _updateStatus(WidgetRef ref, String newStatus) async {
-    final db = ref.read(databaseProvider);
-    await db.update(db.leavesTable).replace(
-      leave.copyWith(
-        status: newStatus,
-        updatedAt: DateTime.now(),
-      )
-    );
+    final syncService = ref.read(leaveSyncServiceProvider);
+    final approverId = ref.read(authProvider).currentMember?.id ?? '';
+
+    if (newStatus == 'approved') {
+      await syncService.approveLeave(leave, approverId);
+    } else if (newStatus == 'rejected') {
+      await syncService.rejectLeave(leave, approverId);
+    }
   }
 }

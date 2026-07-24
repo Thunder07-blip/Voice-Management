@@ -16,6 +16,7 @@ import 'community_health_screen.dart';
 import '../kitchen/meal_planning_screen.dart';
 import 'create_acknowledgement_sheet.dart';
 import 'package:intl/intl.dart';
+import 'widgets/status_banner.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -100,6 +101,7 @@ class DashboardScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const StatusBanner(),
             // Welcome header
             Text(
               'Dashboard',

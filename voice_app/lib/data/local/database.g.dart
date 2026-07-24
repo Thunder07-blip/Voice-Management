@@ -1262,6 +1262,18 @@ class $MembersTableTable extends MembersTable
     requiredDuringInsert: false,
     defaultValue: const Constant('student'),
   );
+  static const VerificationMeta _currentStatusMeta = const VerificationMeta(
+    'currentStatus',
+  );
+  @override
+  late final GeneratedColumn<String> currentStatus = GeneratedColumn<String>(
+    'current_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('Present'),
+  );
   static const VerificationMeta _groupIdMeta = const VerificationMeta(
     'groupId',
   );
@@ -1325,6 +1337,7 @@ class $MembersTableTable extends MembersTable
     college,
     year,
     memberType,
+    currentStatus,
     groupId,
     roleId,
     createdAt,
@@ -1393,6 +1406,15 @@ class $MembersTableTable extends MembersTable
       context.handle(
         _memberTypeMeta,
         memberType.isAcceptableOrUnknown(data['member_type']!, _memberTypeMeta),
+      );
+    }
+    if (data.containsKey('current_status')) {
+      context.handle(
+        _currentStatusMeta,
+        currentStatus.isAcceptableOrUnknown(
+          data['current_status']!,
+          _currentStatusMeta,
+        ),
       );
     }
     if (data.containsKey('group_id')) {
@@ -1470,6 +1492,10 @@ class $MembersTableTable extends MembersTable
         DriftSqlType.string,
         data['${effectivePrefix}member_type'],
       )!,
+      currentStatus: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}current_status'],
+      )!,
       groupId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}group_id'],
@@ -1508,6 +1534,7 @@ class Member extends DataClass implements Insertable<Member> {
   final String? college;
   final String? year;
   final String memberType;
+  final String currentStatus;
   final String? groupId;
   final String? roleId;
   final DateTime createdAt;
@@ -1522,6 +1549,7 @@ class Member extends DataClass implements Insertable<Member> {
     this.college,
     this.year,
     required this.memberType,
+    required this.currentStatus,
     this.groupId,
     this.roleId,
     required this.createdAt,
@@ -1549,6 +1577,7 @@ class Member extends DataClass implements Insertable<Member> {
       map['year'] = Variable<String>(year);
     }
     map['member_type'] = Variable<String>(memberType);
+    map['current_status'] = Variable<String>(currentStatus);
     if (!nullToAbsent || groupId != null) {
       map['group_id'] = Variable<String>(groupId);
     }
@@ -1581,6 +1610,7 @@ class Member extends DataClass implements Insertable<Member> {
           : Value(college),
       year: year == null && nullToAbsent ? const Value.absent() : Value(year),
       memberType: Value(memberType),
+      currentStatus: Value(currentStatus),
       groupId: groupId == null && nullToAbsent
           ? const Value.absent()
           : Value(groupId),
@@ -1609,6 +1639,7 @@ class Member extends DataClass implements Insertable<Member> {
       college: serializer.fromJson<String?>(json['college']),
       year: serializer.fromJson<String?>(json['year']),
       memberType: serializer.fromJson<String>(json['memberType']),
+      currentStatus: serializer.fromJson<String>(json['currentStatus']),
       groupId: serializer.fromJson<String?>(json['groupId']),
       roleId: serializer.fromJson<String?>(json['roleId']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
@@ -1628,6 +1659,7 @@ class Member extends DataClass implements Insertable<Member> {
       'college': serializer.toJson<String?>(college),
       'year': serializer.toJson<String?>(year),
       'memberType': serializer.toJson<String>(memberType),
+      'currentStatus': serializer.toJson<String>(currentStatus),
       'groupId': serializer.toJson<String?>(groupId),
       'roleId': serializer.toJson<String?>(roleId),
       'createdAt': serializer.toJson<DateTime>(createdAt),
@@ -1645,6 +1677,7 @@ class Member extends DataClass implements Insertable<Member> {
     Value<String?> college = const Value.absent(),
     Value<String?> year = const Value.absent(),
     String? memberType,
+    String? currentStatus,
     Value<String?> groupId = const Value.absent(),
     Value<String?> roleId = const Value.absent(),
     DateTime? createdAt,
@@ -1659,6 +1692,7 @@ class Member extends DataClass implements Insertable<Member> {
     college: college.present ? college.value : this.college,
     year: year.present ? year.value : this.year,
     memberType: memberType ?? this.memberType,
+    currentStatus: currentStatus ?? this.currentStatus,
     groupId: groupId.present ? groupId.value : this.groupId,
     roleId: roleId.present ? roleId.value : this.roleId,
     createdAt: createdAt ?? this.createdAt,
@@ -1679,6 +1713,9 @@ class Member extends DataClass implements Insertable<Member> {
       memberType: data.memberType.present
           ? data.memberType.value
           : this.memberType,
+      currentStatus: data.currentStatus.present
+          ? data.currentStatus.value
+          : this.currentStatus,
       groupId: data.groupId.present ? data.groupId.value : this.groupId,
       roleId: data.roleId.present ? data.roleId.value : this.roleId,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
@@ -1698,6 +1735,7 @@ class Member extends DataClass implements Insertable<Member> {
           ..write('college: $college, ')
           ..write('year: $year, ')
           ..write('memberType: $memberType, ')
+          ..write('currentStatus: $currentStatus, ')
           ..write('groupId: $groupId, ')
           ..write('roleId: $roleId, ')
           ..write('createdAt: $createdAt, ')
@@ -1717,6 +1755,7 @@ class Member extends DataClass implements Insertable<Member> {
     college,
     year,
     memberType,
+    currentStatus,
     groupId,
     roleId,
     createdAt,
@@ -1735,6 +1774,7 @@ class Member extends DataClass implements Insertable<Member> {
           other.college == this.college &&
           other.year == this.year &&
           other.memberType == this.memberType &&
+          other.currentStatus == this.currentStatus &&
           other.groupId == this.groupId &&
           other.roleId == this.roleId &&
           other.createdAt == this.createdAt &&
@@ -1751,6 +1791,7 @@ class MembersTableCompanion extends UpdateCompanion<Member> {
   final Value<String?> college;
   final Value<String?> year;
   final Value<String> memberType;
+  final Value<String> currentStatus;
   final Value<String?> groupId;
   final Value<String?> roleId;
   final Value<DateTime> createdAt;
@@ -1766,6 +1807,7 @@ class MembersTableCompanion extends UpdateCompanion<Member> {
     this.college = const Value.absent(),
     this.year = const Value.absent(),
     this.memberType = const Value.absent(),
+    this.currentStatus = const Value.absent(),
     this.groupId = const Value.absent(),
     this.roleId = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -1782,6 +1824,7 @@ class MembersTableCompanion extends UpdateCompanion<Member> {
     this.college = const Value.absent(),
     this.year = const Value.absent(),
     this.memberType = const Value.absent(),
+    this.currentStatus = const Value.absent(),
     this.groupId = const Value.absent(),
     this.roleId = const Value.absent(),
     required DateTime createdAt,
@@ -1801,6 +1844,7 @@ class MembersTableCompanion extends UpdateCompanion<Member> {
     Expression<String>? college,
     Expression<String>? year,
     Expression<String>? memberType,
+    Expression<String>? currentStatus,
     Expression<String>? groupId,
     Expression<String>? roleId,
     Expression<DateTime>? createdAt,
@@ -1817,6 +1861,7 @@ class MembersTableCompanion extends UpdateCompanion<Member> {
       if (college != null) 'college': college,
       if (year != null) 'year': year,
       if (memberType != null) 'member_type': memberType,
+      if (currentStatus != null) 'current_status': currentStatus,
       if (groupId != null) 'group_id': groupId,
       if (roleId != null) 'role_id': roleId,
       if (createdAt != null) 'created_at': createdAt,
@@ -1835,6 +1880,7 @@ class MembersTableCompanion extends UpdateCompanion<Member> {
     Value<String?>? college,
     Value<String?>? year,
     Value<String>? memberType,
+    Value<String>? currentStatus,
     Value<String?>? groupId,
     Value<String?>? roleId,
     Value<DateTime>? createdAt,
@@ -1851,6 +1897,7 @@ class MembersTableCompanion extends UpdateCompanion<Member> {
       college: college ?? this.college,
       year: year ?? this.year,
       memberType: memberType ?? this.memberType,
+      currentStatus: currentStatus ?? this.currentStatus,
       groupId: groupId ?? this.groupId,
       roleId: roleId ?? this.roleId,
       createdAt: createdAt ?? this.createdAt,
@@ -1887,6 +1934,9 @@ class MembersTableCompanion extends UpdateCompanion<Member> {
     if (memberType.present) {
       map['member_type'] = Variable<String>(memberType.value);
     }
+    if (currentStatus.present) {
+      map['current_status'] = Variable<String>(currentStatus.value);
+    }
     if (groupId.present) {
       map['group_id'] = Variable<String>(groupId.value);
     }
@@ -1919,6 +1969,7 @@ class MembersTableCompanion extends UpdateCompanion<Member> {
           ..write('college: $college, ')
           ..write('year: $year, ')
           ..write('memberType: $memberType, ')
+          ..write('currentStatus: $currentStatus, ')
           ..write('groupId: $groupId, ')
           ..write('roleId: $roleId, ')
           ..write('createdAt: $createdAt, ')
@@ -6086,6 +6137,7 @@ typedef $$MembersTableTableCreateCompanionBuilder =
       Value<String?> college,
       Value<String?> year,
       Value<String> memberType,
+      Value<String> currentStatus,
       Value<String?> groupId,
       Value<String?> roleId,
       required DateTime createdAt,
@@ -6103,6 +6155,7 @@ typedef $$MembersTableTableUpdateCompanionBuilder =
       Value<String?> college,
       Value<String?> year,
       Value<String> memberType,
+      Value<String> currentStatus,
       Value<String?> groupId,
       Value<String?> roleId,
       Value<DateTime> createdAt,
@@ -6157,6 +6210,11 @@ class $$MembersTableTableFilterComposer
 
   ColumnFilters<String> get memberType => $composableBuilder(
     column: $table.memberType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get currentStatus => $composableBuilder(
+    column: $table.currentStatus,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6235,6 +6293,11 @@ class $$MembersTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get currentStatus => $composableBuilder(
+    column: $table.currentStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get groupId => $composableBuilder(
     column: $table.groupId,
     builder: (column) => ColumnOrderings(column),
@@ -6298,6 +6361,11 @@ class $$MembersTableTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get currentStatus => $composableBuilder(
+    column: $table.currentStatus,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get groupId =>
       $composableBuilder(column: $table.groupId, builder: (column) => column);
 
@@ -6350,6 +6418,7 @@ class $$MembersTableTableTableManager
                 Value<String?> college = const Value.absent(),
                 Value<String?> year = const Value.absent(),
                 Value<String> memberType = const Value.absent(),
+                Value<String> currentStatus = const Value.absent(),
                 Value<String?> groupId = const Value.absent(),
                 Value<String?> roleId = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
@@ -6365,6 +6434,7 @@ class $$MembersTableTableTableManager
                 college: college,
                 year: year,
                 memberType: memberType,
+                currentStatus: currentStatus,
                 groupId: groupId,
                 roleId: roleId,
                 createdAt: createdAt,
@@ -6382,6 +6452,7 @@ class $$MembersTableTableTableManager
                 Value<String?> college = const Value.absent(),
                 Value<String?> year = const Value.absent(),
                 Value<String> memberType = const Value.absent(),
+                Value<String> currentStatus = const Value.absent(),
                 Value<String?> groupId = const Value.absent(),
                 Value<String?> roleId = const Value.absent(),
                 required DateTime createdAt,
@@ -6397,6 +6468,7 @@ class $$MembersTableTableTableManager
                 college: college,
                 year: year,
                 memberType: memberType,
+                currentStatus: currentStatus,
                 groupId: groupId,
                 roleId: roleId,
                 createdAt: createdAt,

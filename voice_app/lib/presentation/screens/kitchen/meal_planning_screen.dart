@@ -128,17 +128,39 @@ class _MemberView extends ConsumerWidget {
 
     final dateStr = DateFormat('yyyy-MM-dd').format(date);
     
+    final leavesAsync = ref.watch(leavesStreamProvider);
+    
     return mealPlansAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (err, _) => Center(child: Text('Error: $err')),
       data: (plans) {
+        final leaves = leavesAsync.value ?? [];
         // Find existing plan or use defaults
         final myPlan = plans.where(
           (p) => p.memberId == authState.currentMember!.id && p.date == dateStr
         ).firstOrNull;
 
-        // Smart Defaults: If on leave, default to false.
-        // For MVP, we assume true if not on leave. Real app would check leavesAsync.
+        // Check if date is under an approved or active leave
+        bool isOnLeave = false;
+        for (final leave in leaves) {
+          if (leave.memberId == authState.currentMember!.id && (leave.status == 'approved' || leave.status == 'active')) {
+            final start = DateTime.parse(leave.startDate);
+            // End date could be null, if so assume it's ongoing or at least today
+            final end = leave.endDate != null ? DateTime.parse(leave.endDate!) : start.add(const Duration(days: 365));
+            
+            // Normalize to day
+            final checkDay = DateTime(date.year, date.month, date.day);
+            final startDay = DateTime(start.year, start.month, start.day);
+            final endDay = DateTime(end.year, end.month, end.day);
+
+            if ((checkDay.isAfter(startDay) || checkDay.isAtSameMomentAs(startDay)) && 
+                (checkDay.isBefore(endDay) || checkDay.isAtSameMomentAs(endDay))) {
+              isOnLeave = true;
+              break;
+            }
+          }
+        }
+
         final breakfast = myPlan?.breakfast ?? true;
         final lunch = myPlan?.lunch ?? true;
         final dinner = myPlan?.dinner ?? true;
@@ -151,21 +173,46 @@ class _MemberView extends ConsumerWidget {
               style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
+            if (isOnLeave) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.tertiaryContainer,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.flight, color: AppTheme.onTertiaryContainer),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'You are on leave for this date. Meals are automatically marked as Not Eating.',
+                        style: TextStyle(color: AppTheme.onTertiaryContainer),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
             _MealSelectionCard(
               title: 'Breakfast',
               isEating: breakfast,
+              isDisabled: isOnLeave,
               onChanged: (val) => _updateMeal(ref, dateStr, authState.currentMember!.id, myPlan, breakfast: val),
             ),
             const SizedBox(height: 16),
             _MealSelectionCard(
               title: 'Lunch',
               isEating: lunch,
+              isDisabled: isOnLeave,
               onChanged: (val) => _updateMeal(ref, dateStr, authState.currentMember!.id, myPlan, lunch: val),
             ),
             const SizedBox(height: 16),
             _MealSelectionCard(
               title: 'Dinner',
               isEating: dinner,
+              isDisabled: isOnLeave,
               onChanged: (val) => _updateMeal(ref, dateStr, authState.currentMember!.id, myPlan, dinner: val),
             ),
           ],
@@ -211,11 +258,13 @@ class _MemberView extends ConsumerWidget {
 class _MealSelectionCard extends StatelessWidget {
   final String title;
   final bool isEating;
+  final bool isDisabled;
   final ValueChanged<bool> onChanged;
 
   const _MealSelectionCard({
     required this.title,
     required this.isEating,
+    this.isDisabled = false,
     required this.onChanged,
   });
 
@@ -238,7 +287,7 @@ class _MealSelectionCard extends StatelessWidget {
               ChoiceChip(
                 label: const Text('○ Eating'),
                 selected: isEating,
-                onSelected: (val) {
+                onSelected: isDisabled ? null : (val) {
                   if (val) onChanged(true);
                 },
                 selectedColor: Colors.green[100],
@@ -248,7 +297,7 @@ class _MealSelectionCard extends StatelessWidget {
               ChoiceChip(
                 label: const Text('○ Not Eating'),
                 selected: !isEating,
-                onSelected: (val) {
+                onSelected: isDisabled ? null : (val) {
                   if (val) onChanged(false);
                 },
                 selectedColor: Colors.red[100],
@@ -283,19 +332,21 @@ class _KitchenView extends ConsumerWidget {
             final dateStr = DateFormat('yyyy-MM-dd').format(date);
             final todaysPlans = plans.where((p) => p.date == dateStr).toList();
 
-            int totalMembers = members.length;
+            // Calculate Meals Required = (Present Members) - (Present Members who selected Not Eating)
+            // Or simpler: Count all Present Members who have NOT selected "Not Eating"
             
-            // For MVP, On Leave is just mocked as 0 unless we fetch leaves.
-            // Let's assume on Leave = 0 for now.
-            int onLeave = 0; 
-            
-            int notEatingBreakfast = todaysPlans.where((p) => !p.breakfast).length;
-            int notEatingLunch = todaysPlans.where((p) => !p.lunch).length;
-            int notEatingDinner = todaysPlans.where((p) => !p.dinner).length;
+            int reqBreakfast = 0;
+            int reqLunch = 0;
+            int reqDinner = 0;
 
-            int reqBreakfast = totalMembers - onLeave - notEatingBreakfast;
-            int reqLunch = totalMembers - onLeave - notEatingLunch;
-            int reqDinner = totalMembers - onLeave - notEatingDinner;
+            for (final member in members) {
+              if (member.currentStatus == 'Present') {
+                final plan = todaysPlans.where((p) => p.memberId == member.id).firstOrNull;
+                if (plan?.breakfast ?? true) reqBreakfast++;
+                if (plan?.lunch ?? true) reqLunch++;
+                if (plan?.dinner ?? true) reqDinner++;
+              }
+            }
 
             return ListView(
               padding: const EdgeInsets.all(20),

@@ -58,6 +58,7 @@ class MembersTable extends Table {
   TextColumn get college => text().nullable()();
   TextColumn get year => text().nullable()();
   TextColumn get memberType => text().withDefault(const Constant('student'))();
+  TextColumn get currentStatus => text().withDefault(const Constant('Present'))(); // Present or Away
   TextColumn get groupId => text().nullable()();
   TextColumn get roleId => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
@@ -205,7 +206,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration {
