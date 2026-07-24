@@ -4,6 +4,8 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../../data/local/database.dart';
 import '../../data/remote/api_client.dart';
 import '../../data/sync/sync_engine.dart';
+export '../services/leave_sync_service.dart';
+export '../services/update_service.dart';
 
 // ── Core Services ───────────────────────────────────────────────────
 

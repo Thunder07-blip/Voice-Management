@@ -322,29 +322,7 @@ class AppDatabase extends _$AppDatabase {
       updatedAt: DateTime.now(),
     ), mode: InsertMode.insertOrIgnore);
 
-    // 4. Create Chef Member (VO-CHEF)
-    await into(membersTable).insert(MembersTableCompanion.insert(
-      id: 'member-chef-001',
-      memberId: const Value('VO-CHEF'),
-      pinHash: const Value('5678'),
-      name: 'Head Chef',
-      memberType: const Value('working'),
-      roleId: const Value(kitchenRoleId),
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-    ), mode: InsertMode.insertOrIgnore);
-
-    // 5. Create Normal Member (VO-USER)
-    await into(membersTable).insert(MembersTableCompanion.insert(
-      id: 'member-user-001',
-      memberId: const Value('VO-USER'),
-      pinHash: const Value('1111'),
-      name: 'Regular Member',
-      memberType: const Value('student'),
-      roleId: const Value.absent(), // No special role
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-    ), mode: InsertMode.insertOrIgnore);
+    // End of seed data
   }
 
   // Helpers to check if a record is pending sync

@@ -6,17 +6,50 @@ import 'tasks/tasks_screen.dart';
 import 'notices/notices_screen.dart';
 import 'more/more_screen.dart';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/providers/app_providers.dart';
+import 'splash/update_dialog.dart';
+
 /// Root shell with bottom navigation matching the Stitch design.
 /// Bottom nav items: Dashboard, Members, Tasks, Notices, More
-class AppShell extends StatefulWidget {
+class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
 
   @override
-  State<AppShell> createState() => _AppShellState();
+  ConsumerState<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends State<AppShell> {
+class _AppShellState extends ConsumerState<AppShell> {
   int _currentIndex = 0;
+  bool _hasCheckedForUpdates = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_hasCheckedForUpdates) {
+        _checkForUpdates();
+      }
+    });
+  }
+
+  Future<void> _checkForUpdates() async {
+    _hasCheckedForUpdates = true;
+    try {
+      final updateService = ref.read(updateServiceProvider);
+      final updateInfo = await updateService.checkForUpdate();
+      
+      if (updateInfo != null && mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: !updateInfo.isMandatory,
+          builder: (context) => UpdateDialog(updateInfo: updateInfo),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error during auto update check: $e');
+    }
+  }
 
   final _screens = const [
     DashboardScreen(),
