@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/providers/app_providers.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../app_drawer.dart';
 import '../auth/members_management_screen.dart';
@@ -152,11 +153,17 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
                       ),
                       Padding(
                         padding: const EdgeInsets.only(bottom: 8.0),
-                        child: Text(
-                          '124 Members',
-                          style: theme.textTheme.labelLarge?.copyWith(
-                            color: AppTheme.onSurfaceVariant,
-                          ),
+                        child: Consumer(
+                          builder: (context, ref, _) {
+                            final membersAsync = ref.watch(membersStreamProvider);
+                            final count = membersAsync.value?.length ?? 0;
+                            return Text(
+                              '$count Members',
+                              style: theme.textTheme.labelLarge?.copyWith(
+                                color: AppTheme.onSurfaceVariant,
+                              ),
+                            );
+                          },
                         ),
                       ),
                     ],
@@ -268,27 +275,69 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
                 ),
               ),
             )
-          else
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: _MemberCard(
-                        name: displayedMembers[index]['name'] as String,
-                        type: displayedMembers[index]['type'] as String,
-                        details: displayedMembers[index]['details'] as String,
-                        initials: displayedMembers[index]['initials'] as String,
-                        isPendingSync: displayedMembers[index]['isPendingSync'] as bool? ?? false,
+          Consumer(
+            builder: (context, ref, child) {
+              final membersAsync = ref.watch(membersStreamProvider);
+              return membersAsync.when(
+                data: (members) {
+                  final query = _searchController.text.toLowerCase();
+                  final filtered = members.where((m) {
+                    final matchesSearch = query.isEmpty ||
+                        m.name.toLowerCase().contains(query) ||
+                        (m.college?.toLowerCase().contains(query) ?? false);
+                    final matchesWorking = !_isWorkingOnly || m.memberType.toLowerCase() == 'working';
+                    return matchesSearch && matchesWorking;
+                  }).toList();
+
+                  if (filtered.isEmpty) {
+                    return SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.all(40),
+                        child: Center(
+                          child: Column(
+                            children: [
+                              const Icon(Icons.people_outline, size: 64, color: AppTheme.outlineVariant),
+                              const SizedBox(height: 16),
+                              Text('No Members Found', style: theme.textTheme.titleMedium),
+                            ],
+                          ),
+                        ),
                       ),
                     );
-                  },
-                  childCount: displayedMembers.length,
-                ),
-              ),
-            ),
+                  }
+
+                  return SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final member = filtered[index];
+                          final initials = member.name.trim().isNotEmpty
+                              ? member.name.trim().split(' ').map((e) => e[0]).take(2).join().toUpperCase()
+                              : 'M';
+                          final details = '${member.memberType.toUpperCase()} ${member.college != null ? "• ${member.college}" : ""}';
+                          
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: _MemberCard(
+                              name: member.name,
+                              type: member.memberType,
+                              details: details,
+                              initials: initials,
+                              isPendingSync: false,
+                            ),
+                          );
+                        },
+                        childCount: filtered.length,
+                      ),
+                    ),
+                  );
+                },
+                loading: () => const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator())),
+                error: (err, stack) => SliverToBoxAdapter(child: Center(child: Text('Error loading members'))),
+              );
+            },
+          ),
           
           // Bottom padding for FAB
           const SliverToBoxAdapter(child: SizedBox(height: 100)),
