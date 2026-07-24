@@ -5,6 +5,8 @@ import '../../../core/providers/app_providers.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../data/local/database.dart';
 import '../app_drawer.dart';
+import 'tasks_history_screen.dart';
+import 'task_detail_screen.dart';
 import 'create_task_sheet.dart';
 
 class TasksScreen extends ConsumerStatefulWidget {
@@ -86,6 +88,16 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
         ),
         centerTitle: true,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.history),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const TasksHistoryScreen()),
+              );
+            },
+            tooltip: 'Task History',
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: CircleAvatar(
@@ -197,7 +209,10 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                 // If there are no tasks in Drift, we fallback to mock tasks for demonstration
                 // In production, we'd just show empty state.
                 final baseTasks = allTasks.isEmpty ? _convertMockTasks() : allTasks;
-                final displayedTasks = _getFilteredTasks(baseTasks);
+                final now = DateTime.now();
+                // Filter out tasks older than 30 days
+                final activeTasks = baseTasks.where((t) => now.difference(t.createdAt).inDays <= 30).toList();
+                final displayedTasks = _getFilteredTasks(activeTasks);
 
                 if (displayedTasks.isEmpty) {
                   return const Center(child: Text('No tasks found.'));
@@ -219,24 +234,33 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
 
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 16),
-                      child: _TaskListItem(
-                        title: task.title,
-                        description: task.description ?? '',
-                        priority: task.priority,
-                        dueDate: task.dueDate ?? '',
-                        status: task.status,
-                        isCompleted: task.status == 'Completed',
-                        isPendingSync: isPendingSync,
-                        canToggle: canToggle,
-                        onToggle: canToggle ? () async {
-                          final db = ref.read(databaseProvider);
-                          final newStatus = task.status == 'Completed' ? 'Pending' : 'Completed';
-                          final updated = task.copyWith(
-                            status: newStatus,
-                            updatedAt: DateTime.now(),
+                      child: InkWell(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => TaskDetailScreen(task: task)),
                           );
-                          await db.update(db.tasksTable).replace(updated);
-                        } : null,
+                        },
+                        borderRadius: BorderRadius.circular(16),
+                        child: _TaskListItem(
+                          title: task.title,
+                          description: task.description ?? '',
+                          priority: task.priority,
+                          dueDate: task.dueDate ?? '',
+                          status: task.status,
+                          isCompleted: task.status == 'Completed',
+                          isPendingSync: isPendingSync,
+                          canToggle: canToggle,
+                          onToggle: canToggle ? () async {
+                            final db = ref.read(databaseProvider);
+                            final newStatus = task.status == 'Completed' ? 'Pending' : 'Completed';
+                            final updated = task.copyWith(
+                              status: newStatus,
+                              updatedAt: DateTime.now(),
+                            );
+                            await db.update(db.tasksTable).replace(updated);
+                          } : null,
+                        ),
                       ),
                     );
                   },

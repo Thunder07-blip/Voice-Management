@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/providers/auth_provider.dart';
+import '../../core/providers/app_providers.dart';
 import 'leave/leave_request_sheet.dart';
 import 'incharges/incharges_screen.dart';
 
@@ -88,6 +89,21 @@ class AppDrawer extends ConsumerWidget {
                       const SnackBar(content: Text('Settings coming soon!')),
                     );
                   },
+                ),
+                ref.watch(packageInfoProvider).when(
+                  data: (info) => Padding(
+                    padding: const EdgeInsets.only(left: 20, top: 16, bottom: 8),
+                    child: Text(
+                      'Version ${info.version}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.onSurfaceVariant.withValues(alpha: 0.6),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, __) => const SizedBox.shrink(),
                 ),
               ],
             ),

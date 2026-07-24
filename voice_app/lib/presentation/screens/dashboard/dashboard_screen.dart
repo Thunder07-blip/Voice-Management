@@ -14,6 +14,8 @@ import '../incharges/incharges_screen.dart';
 import '../app_drawer.dart';
 import 'community_health_screen.dart';
 import '../kitchen/meal_planning_screen.dart';
+import 'create_acknowledgement_sheet.dart';
+import 'package:intl/intl.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -224,22 +226,246 @@ class DashboardScreen extends ConsumerWidget {
               const SizedBox(height: 32),
             ],
 
-            // Recent Activity Section
-            Text(
-              'Recent Activity',
-              style: theme.textTheme.titleLarge,
+            // Acknowledgement Board
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Acknowledgement Board',
+                  style: theme.textTheme.titleLarge,
+                ),
+                if (authState.hasPermission('manage_acknowledgements') || 
+                    ['Project Manager', 'Overall Coordinator', 'Assistant Overall Coordinator'].contains(authState.currentRole?.name))
+                  IconButton.filledTonal(
+                    onPressed: () {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        useSafeArea: true,
+                        backgroundColor: AppTheme.surfaceContainerLowest,
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                        ),
+                        builder: (context) => const CreateAcknowledgementSheet(),
+                      );
+                    },
+                    icon: const Icon(Icons.add, size: 20),
+                    tooltip: 'Post Acknowledgement',
+                  ),
+              ],
             ),
             const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppTheme.surfaceContainerLowest,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppTheme.outlineVariant.withValues(alpha: 0.3)),
-              ),
-              child: const Center(
-                child: Text('No recent activity', style: TextStyle(color: AppTheme.onSurfaceVariant)),
-              ),
+            ref.watch(acknowledgementsStreamProvider).when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (err, _) => Center(child: Text('Error: $err')),
+              data: (acks) {
+                if (acks.isEmpty) {
+                  return Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppTheme.surfaceContainerLowest,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppTheme.outlineVariant.withValues(alpha: 0.3)),
+                    ),
+                    child: const Center(
+                      child: Text('No acknowledgements yet.', style: TextStyle(color: AppTheme.onSurfaceVariant)),
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: acks.length,
+                  itemBuilder: (context, index) {
+                    final ack = acks[index];
+                    final membersList = membersAsync.value ?? [];
+                    final authorName = membersList.where((m) => m.id == ack.authorId).firstOrNull?.name ?? 'Unknown Member';
+
+                    return InkWell(
+                      onTap: () {
+                        if (ack.taggedMemberIds.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('No members tagged in this acknowledgement.')),
+                          );
+                          return;
+                        }
+                        
+                        showDialog(
+                          context: context,
+                          builder: (context) {
+                            return Dialog(
+                              backgroundColor: Colors.transparent,
+                              insetPadding: const EdgeInsets.all(20),
+                              child: Container(
+                                width: double.infinity,
+                                decoration: BoxDecoration(
+                                  color: AppTheme.surfaceContainerLowest,
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(color: AppTheme.outlineVariant.withValues(alpha: 0.3)),
+                                  boxShadow: const [BoxShadow(color: Color(0x14855300), blurRadius: 32, offset: Offset(0, 8))],
+                                ),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    // Header
+                                    Container(
+                                      height: 96,
+                                      decoration: const BoxDecoration(
+                                        color: Color(0xFFFDECD2), // approx primaryContainer/20
+                                        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                                      ),
+                                      child: Center(
+                                        child: Container(
+                                          width: 48,
+                                          height: 48,
+                                          decoration: BoxDecoration(
+                                            color: AppTheme.secondaryContainer,
+                                            shape: BoxShape.circle,
+                                            border: Border.all(color: AppTheme.surfaceContainerLowest, width: 4),
+                                            boxShadow: AppTheme.softShadow,
+                                          ),
+                                          child: const Icon(Icons.task_alt, color: AppTheme.onSecondaryContainer, size: 28),
+                                        ),
+                                      ),
+                                    ),
+                                    // Body
+                                    Padding(
+                                      padding: const EdgeInsets.all(24),
+                                      child: Column(
+                                        children: [
+                                          const Text(
+                                            'Appreciation!',
+                                            style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, color: AppTheme.onSurface),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          const Text(
+                                            'Gratitude for your intentional service.',
+                                            style: TextStyle(fontSize: 14, color: AppTheme.onSurfaceVariant),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                          const SizedBox(height: 24),
+                                          
+                                          // Details Box
+                                          Container(
+                                            padding: const EdgeInsets.all(16),
+                                            decoration: BoxDecoration(
+                                              color: AppTheme.surfaceContainerLow,
+                                              borderRadius: BorderRadius.circular(12),
+                                              border: Border.all(color: AppTheme.outlineVariant.withValues(alpha: 0.2)),
+                                            ),
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                const Text('SEVA', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primary, letterSpacing: 0.5)),
+                                                const SizedBox(height: 4),
+                                                Row(
+                                                  children: [
+                                                    const Icon(Icons.cleaning_services, color: AppTheme.secondary, size: 20),
+                                                    const SizedBox(width: 8),
+                                                    Expanded(
+                                                      child: Text(
+                                                        ack.content,
+                                                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: AppTheme.onSurface),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                const SizedBox(height: 16),
+                                                const Text('ACKNOWLEDGED MEMBERS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.onSurfaceVariant, letterSpacing: 0.5)),
+                                                const SizedBox(height: 12),
+                                                ...ack.taggedMemberIds.map((id) {
+                                                  final name = membersList.where((m) => m.id == id).firstOrNull?.name ?? 'Unknown Member';
+                                                  return Padding(
+                                                    padding: const EdgeInsets.only(bottom: 12),
+                                                    child: Row(
+                                                      children: [
+                                                        CircleAvatar(
+                                                          radius: 16,
+                                                          backgroundColor: AppTheme.surfaceContainerHigh,
+                                                          child: Text(name.substring(0, 1).toUpperCase(), style: const TextStyle(color: AppTheme.onSurface, fontSize: 12, fontWeight: FontWeight.bold)),
+                                                        ),
+                                                        const SizedBox(width: 12),
+                                                        Expanded(child: Text(name, style: const TextStyle(fontSize: 16, color: AppTheme.onSurface))),
+                                                        const Icon(Icons.verified, color: AppTheme.secondary, size: 16),
+                                                      ],
+                                                    ),
+                                                  );
+                                                }),
+                                              ],
+                                            ),
+                                          ),
+                                          const SizedBox(height: 24),
+                                          
+                                          // Action
+                                          SizedBox(
+                                            width: double.infinity,
+                                            height: 56,
+                                            child: FilledButton(
+                                              onPressed: () => Navigator.pop(context),
+                                              style: FilledButton.styleFrom(
+                                                backgroundColor: AppTheme.primaryContainer,
+                                                foregroundColor: AppTheme.onPrimaryContainer,
+                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                              ),
+                                              child: const Text('Jai Ho!', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppTheme.surfaceContainerLowest,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppTheme.outlineVariant.withValues(alpha: 0.3)),
+                        boxShadow: AppTheme.softShadow,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.stars, color: Colors.orange, size: 20),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  ack.content,
+                                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'By $authorName',
+                                style: const TextStyle(fontSize: 12, color: AppTheme.onSurfaceVariant),
+                              ),
+                              Text(
+                                DateFormat('MMM d, h:mm a').format(ack.createdAt),
+                                style: const TextStyle(fontSize: 12, color: AppTheme.onSurfaceVariant),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ));
+                  },
+                );
+              },
             ),
             const SizedBox(height: 32),
           ],

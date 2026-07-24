@@ -1,18 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/providers/app_providers.dart';
 
-class MemberProfileScreen extends StatelessWidget {
+class MemberProfileScreen extends ConsumerWidget {
   final String name;
+  final String? memberId; // Made optional so mock members don't break
   final bool isSelf;
 
   const MemberProfileScreen({
     super.key, 
     required this.name,
+    this.memberId,
     this.isSelf = false,
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -223,7 +228,7 @@ class MemberProfileScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
 
-            // Recent Activity
+            // Acknowledgements Section
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
@@ -235,27 +240,59 @@ class MemberProfileScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Recent Activity',
+                    'Acknowledgements',
                     style: theme.textTheme.titleLarge?.copyWith(color: AppTheme.onSurface),
                   ),
                   const SizedBox(height: 24),
-                  _ActivityTimelineItem(
-                    icon: Icons.task_alt,
-                    content: 'Completed task "Coordinate book distribution"',
-                    time: '2 days ago',
-                    isFirst: true,
-                  ),
-                  _ActivityTimelineItem(
-                    icon: Icons.group_add,
-                    content: 'Assigned to Study Circle A',
-                    time: '1 month ago',
-                  ),
-                  _ActivityTimelineItem(
-                    icon: Icons.person_add,
-                    content: 'Joined Vedic Oasis',
-                    time: '6 months ago',
-                    isLast: true,
-                  ),
+                  if (memberId == null)
+                    const Text('No acknowledgements (Mock Member)', style: TextStyle(color: AppTheme.onSurfaceVariant))
+                  else
+                    ref.watch(acknowledgementsStreamProvider).when(
+                      loading: () => const Center(child: CircularProgressIndicator()),
+                      error: (err, _) => Text('Error: $err'),
+                      data: (acks) {
+                        final memberAcks = acks.where((a) => a.taggedMemberIds.contains(memberId)).toList();
+                        
+                        if (memberAcks.isEmpty) {
+                          return const Text('No acknowledgements yet.', style: TextStyle(color: AppTheme.onSurfaceVariant));
+                        }
+
+                        return ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: memberAcks.length,
+                          itemBuilder: (context, index) {
+                            final ack = memberAcks[index];
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 16),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Icon(Icons.stars, color: Colors.orange, size: 24),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          ack.content,
+                                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          DateFormat('MMM d, yyyy - h:mm a').format(ack.createdAt),
+                                          style: const TextStyle(fontSize: 12, color: AppTheme.onSurfaceVariant),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
                 ],
               ),
             ),
@@ -351,7 +388,7 @@ class _TaskCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 160,
+      height: 176,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppTheme.surfaceContainerLowest,

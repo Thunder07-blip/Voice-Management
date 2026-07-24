@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 
@@ -162,6 +163,28 @@ class OutboxOperations extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+// ── Acknowledgements ────────────────────────────────────────────────
+
+class StringListConverter extends TypeConverter<List<String>, String> {
+  const StringListConverter();
+  @override
+  List<String> fromSql(String fromDb) => List<String>.from(jsonDecode(fromDb));
+  @override
+  String toSql(List<String> value) => jsonEncode(value);
+}
+
+@DataClassName('Acknowledgement')
+class AcknowledgementsTable extends Table {
+  TextColumn get id => text()();
+  TextColumn get content => text()();
+  TextColumn get authorId => text()(); 
+  TextColumn get taggedMemberIds => text().map(const StringListConverter()).withDefault(const Constant('[]'))();
+  DateTimeColumn get createdAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 // ── Database Class ────────────────────────────────────────────────
 
 @DriftDatabase(tables: [
@@ -176,12 +199,13 @@ class OutboxOperations extends Table {
   MealPlansTable,
   HealthRecordsTable,
   OutboxOperations,
+  AcknowledgementsTable,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration {
@@ -209,6 +233,12 @@ class AppDatabase extends _$AppDatabase {
         if (from < 6) {
           try { await m.createTable(mealPlansTable); } catch (_) {}
           try { await m.createTable(healthRecordsTable); } catch (_) {}
+        }
+        if (from < 7) {
+          try { await m.createTable(acknowledgementsTable); } catch (_) {}
+        }
+        if (from < 8) {
+          try { await m.addColumn(tasksTable, tasksTable.assignedTo); } catch (_) {}
         }
       },
     );
@@ -248,7 +278,20 @@ class AppDatabase extends _$AppDatabase {
       permissionId: kitchenPermId,
     ), mode: InsertMode.insertOrIgnore);
 
-    // 3. Create the first default member (VO-001) - Admin
+    // 3. Create Acknowledgement Permission and assign to PM
+    const ackPermId = 'perm-ack-001';
+    await into(permissionsTable).insert(PermissionsTableCompanion.insert(
+      id: ackPermId,
+      permissionKey: 'manage_acknowledgements',
+      description: const Value('Can post new acknowledgements on the board'),
+    ), mode: InsertMode.insertOrIgnore);
+
+    await into(rolePermissionsTable).insert(RolePermissionsTableCompanion.insert(
+      roleId: pmRoleId,
+      permissionId: ackPermId,
+    ), mode: InsertMode.insertOrIgnore);
+
+    // 4. Create the first default member (VO-001) - Admin
     await into(membersTable).insert(MembersTableCompanion.insert(
       id: 'member-001',
       memberId: const Value('VO-001'),

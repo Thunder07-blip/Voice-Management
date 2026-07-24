@@ -1,9 +1,15 @@
+import 'package:drift/drift.dart' as drift;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../../data/local/database.dart';
 import '../../data/remote/api_client.dart';
 import '../../data/sync/sync_engine.dart';
 
 // ── Core Services ───────────────────────────────────────────────────
+
+final packageInfoProvider = FutureProvider<PackageInfo>((ref) async {
+  return await PackageInfo.fromPlatform();
+});
 
 final apiClientProvider = Provider<ApiClient>((ref) {
   return ApiClient();
@@ -50,6 +56,15 @@ final noticesStreamProvider = StreamProvider<List<Notice>>((ref) {
 final mealPlansStreamProvider = StreamProvider<List<MealPlan>>((ref) {
   final db = ref.watch(databaseProvider);
   return db.select(db.mealPlansTable).watch();
+});
+
+// Provides a real-time stream of all acknowledgements from the local database
+final acknowledgementsStreamProvider = StreamProvider<List<Acknowledgement>>((ref) {
+  final db = ref.watch(databaseProvider);
+  return (db.select(db.acknowledgementsTable)
+        ..orderBy([(t) => drift.OrderingTerm.desc(t.createdAt)])
+        ..limit(3))
+      .watch();
 });
 
 // Provides a real-time stream of all health records from the local database

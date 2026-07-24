@@ -4958,6 +4958,382 @@ class OutboxOperationsCompanion extends UpdateCompanion<OutboxOperation> {
   }
 }
 
+class $AcknowledgementsTableTable extends AcknowledgementsTable
+    with TableInfo<$AcknowledgementsTableTable, Acknowledgement> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AcknowledgementsTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _contentMeta = const VerificationMeta(
+    'content',
+  );
+  @override
+  late final GeneratedColumn<String> content = GeneratedColumn<String>(
+    'content',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _authorIdMeta = const VerificationMeta(
+    'authorId',
+  );
+  @override
+  late final GeneratedColumn<String> authorId = GeneratedColumn<String>(
+    'author_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<List<String>, String>
+  taggedMemberIds =
+      GeneratedColumn<String>(
+        'tagged_member_ids',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('[]'),
+      ).withConverter<List<String>>(
+        $AcknowledgementsTableTable.$convertertaggedMemberIds,
+      );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    content,
+    authorId,
+    taggedMemberIds,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'acknowledgements_table';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Acknowledgement> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('content')) {
+      context.handle(
+        _contentMeta,
+        content.isAcceptableOrUnknown(data['content']!, _contentMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_contentMeta);
+    }
+    if (data.containsKey('author_id')) {
+      context.handle(
+        _authorIdMeta,
+        authorId.isAcceptableOrUnknown(data['author_id']!, _authorIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_authorIdMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Acknowledgement map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Acknowledgement(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      content: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}content'],
+      )!,
+      authorId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}author_id'],
+      )!,
+      taggedMemberIds: $AcknowledgementsTableTable.$convertertaggedMemberIds
+          .fromSql(
+            attachedDatabase.typeMapping.read(
+              DriftSqlType.string,
+              data['${effectivePrefix}tagged_member_ids'],
+            )!,
+          ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $AcknowledgementsTableTable createAlias(String alias) {
+    return $AcknowledgementsTableTable(attachedDatabase, alias);
+  }
+
+  static TypeConverter<List<String>, String> $convertertaggedMemberIds =
+      const StringListConverter();
+}
+
+class Acknowledgement extends DataClass implements Insertable<Acknowledgement> {
+  final String id;
+  final String content;
+  final String authorId;
+  final List<String> taggedMemberIds;
+  final DateTime createdAt;
+  const Acknowledgement({
+    required this.id,
+    required this.content,
+    required this.authorId,
+    required this.taggedMemberIds,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['content'] = Variable<String>(content);
+    map['author_id'] = Variable<String>(authorId);
+    {
+      map['tagged_member_ids'] = Variable<String>(
+        $AcknowledgementsTableTable.$convertertaggedMemberIds.toSql(
+          taggedMemberIds,
+        ),
+      );
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  AcknowledgementsTableCompanion toCompanion(bool nullToAbsent) {
+    return AcknowledgementsTableCompanion(
+      id: Value(id),
+      content: Value(content),
+      authorId: Value(authorId),
+      taggedMemberIds: Value(taggedMemberIds),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory Acknowledgement.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Acknowledgement(
+      id: serializer.fromJson<String>(json['id']),
+      content: serializer.fromJson<String>(json['content']),
+      authorId: serializer.fromJson<String>(json['authorId']),
+      taggedMemberIds: serializer.fromJson<List<String>>(
+        json['taggedMemberIds'],
+      ),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'content': serializer.toJson<String>(content),
+      'authorId': serializer.toJson<String>(authorId),
+      'taggedMemberIds': serializer.toJson<List<String>>(taggedMemberIds),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  Acknowledgement copyWith({
+    String? id,
+    String? content,
+    String? authorId,
+    List<String>? taggedMemberIds,
+    DateTime? createdAt,
+  }) => Acknowledgement(
+    id: id ?? this.id,
+    content: content ?? this.content,
+    authorId: authorId ?? this.authorId,
+    taggedMemberIds: taggedMemberIds ?? this.taggedMemberIds,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  Acknowledgement copyWithCompanion(AcknowledgementsTableCompanion data) {
+    return Acknowledgement(
+      id: data.id.present ? data.id.value : this.id,
+      content: data.content.present ? data.content.value : this.content,
+      authorId: data.authorId.present ? data.authorId.value : this.authorId,
+      taggedMemberIds: data.taggedMemberIds.present
+          ? data.taggedMemberIds.value
+          : this.taggedMemberIds,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Acknowledgement(')
+          ..write('id: $id, ')
+          ..write('content: $content, ')
+          ..write('authorId: $authorId, ')
+          ..write('taggedMemberIds: $taggedMemberIds, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, content, authorId, taggedMemberIds, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Acknowledgement &&
+          other.id == this.id &&
+          other.content == this.content &&
+          other.authorId == this.authorId &&
+          other.taggedMemberIds == this.taggedMemberIds &&
+          other.createdAt == this.createdAt);
+}
+
+class AcknowledgementsTableCompanion extends UpdateCompanion<Acknowledgement> {
+  final Value<String> id;
+  final Value<String> content;
+  final Value<String> authorId;
+  final Value<List<String>> taggedMemberIds;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const AcknowledgementsTableCompanion({
+    this.id = const Value.absent(),
+    this.content = const Value.absent(),
+    this.authorId = const Value.absent(),
+    this.taggedMemberIds = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AcknowledgementsTableCompanion.insert({
+    required String id,
+    required String content,
+    required String authorId,
+    this.taggedMemberIds = const Value.absent(),
+    required DateTime createdAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       content = Value(content),
+       authorId = Value(authorId),
+       createdAt = Value(createdAt);
+  static Insertable<Acknowledgement> custom({
+    Expression<String>? id,
+    Expression<String>? content,
+    Expression<String>? authorId,
+    Expression<String>? taggedMemberIds,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (content != null) 'content': content,
+      if (authorId != null) 'author_id': authorId,
+      if (taggedMemberIds != null) 'tagged_member_ids': taggedMemberIds,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AcknowledgementsTableCompanion copyWith({
+    Value<String>? id,
+    Value<String>? content,
+    Value<String>? authorId,
+    Value<List<String>>? taggedMemberIds,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return AcknowledgementsTableCompanion(
+      id: id ?? this.id,
+      content: content ?? this.content,
+      authorId: authorId ?? this.authorId,
+      taggedMemberIds: taggedMemberIds ?? this.taggedMemberIds,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (content.present) {
+      map['content'] = Variable<String>(content.value);
+    }
+    if (authorId.present) {
+      map['author_id'] = Variable<String>(authorId.value);
+    }
+    if (taggedMemberIds.present) {
+      map['tagged_member_ids'] = Variable<String>(
+        $AcknowledgementsTableTable.$convertertaggedMemberIds.toSql(
+          taggedMemberIds.value,
+        ),
+      );
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AcknowledgementsTableCompanion(')
+          ..write('id: $id, ')
+          ..write('content: $content, ')
+          ..write('authorId: $authorId, ')
+          ..write('taggedMemberIds: $taggedMemberIds, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -4978,6 +5354,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $OutboxOperationsTable outboxOperations = $OutboxOperationsTable(
     this,
   );
+  late final $AcknowledgementsTableTable acknowledgementsTable =
+      $AcknowledgementsTableTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -4994,6 +5372,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     mealPlansTable,
     healthRecordsTable,
     outboxOperations,
+    acknowledgementsTable,
   ];
 }
 
@@ -7586,6 +7965,229 @@ typedef $$OutboxOperationsTableProcessedTableManager =
       OutboxOperation,
       PrefetchHooks Function()
     >;
+typedef $$AcknowledgementsTableTableCreateCompanionBuilder =
+    AcknowledgementsTableCompanion Function({
+      required String id,
+      required String content,
+      required String authorId,
+      Value<List<String>> taggedMemberIds,
+      required DateTime createdAt,
+      Value<int> rowid,
+    });
+typedef $$AcknowledgementsTableTableUpdateCompanionBuilder =
+    AcknowledgementsTableCompanion Function({
+      Value<String> id,
+      Value<String> content,
+      Value<String> authorId,
+      Value<List<String>> taggedMemberIds,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+
+class $$AcknowledgementsTableTableFilterComposer
+    extends Composer<_$AppDatabase, $AcknowledgementsTableTable> {
+  $$AcknowledgementsTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get content => $composableBuilder(
+    column: $table.content,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get authorId => $composableBuilder(
+    column: $table.authorId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<List<String>, List<String>, String>
+  get taggedMemberIds => $composableBuilder(
+    column: $table.taggedMemberIds,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$AcknowledgementsTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $AcknowledgementsTableTable> {
+  $$AcknowledgementsTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get content => $composableBuilder(
+    column: $table.content,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get authorId => $composableBuilder(
+    column: $table.authorId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get taggedMemberIds => $composableBuilder(
+    column: $table.taggedMemberIds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$AcknowledgementsTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AcknowledgementsTableTable> {
+  $$AcknowledgementsTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get content =>
+      $composableBuilder(column: $table.content, builder: (column) => column);
+
+  GeneratedColumn<String> get authorId =>
+      $composableBuilder(column: $table.authorId, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<List<String>, String> get taggedMemberIds =>
+      $composableBuilder(
+        column: $table.taggedMemberIds,
+        builder: (column) => column,
+      );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$AcknowledgementsTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $AcknowledgementsTableTable,
+          Acknowledgement,
+          $$AcknowledgementsTableTableFilterComposer,
+          $$AcknowledgementsTableTableOrderingComposer,
+          $$AcknowledgementsTableTableAnnotationComposer,
+          $$AcknowledgementsTableTableCreateCompanionBuilder,
+          $$AcknowledgementsTableTableUpdateCompanionBuilder,
+          (
+            Acknowledgement,
+            BaseReferences<
+              _$AppDatabase,
+              $AcknowledgementsTableTable,
+              Acknowledgement
+            >,
+          ),
+          Acknowledgement,
+          PrefetchHooks Function()
+        > {
+  $$AcknowledgementsTableTableTableManager(
+    _$AppDatabase db,
+    $AcknowledgementsTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AcknowledgementsTableTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$AcknowledgementsTableTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$AcknowledgementsTableTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> content = const Value.absent(),
+                Value<String> authorId = const Value.absent(),
+                Value<List<String>> taggedMemberIds = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => AcknowledgementsTableCompanion(
+                id: id,
+                content: content,
+                authorId: authorId,
+                taggedMemberIds: taggedMemberIds,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String content,
+                required String authorId,
+                Value<List<String>> taggedMemberIds = const Value.absent(),
+                required DateTime createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => AcknowledgementsTableCompanion.insert(
+                id: id,
+                content: content,
+                authorId: authorId,
+                taggedMemberIds: taggedMemberIds,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$AcknowledgementsTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $AcknowledgementsTableTable,
+      Acknowledgement,
+      $$AcknowledgementsTableTableFilterComposer,
+      $$AcknowledgementsTableTableOrderingComposer,
+      $$AcknowledgementsTableTableAnnotationComposer,
+      $$AcknowledgementsTableTableCreateCompanionBuilder,
+      $$AcknowledgementsTableTableUpdateCompanionBuilder,
+      (
+        Acknowledgement,
+        BaseReferences<
+          _$AppDatabase,
+          $AcknowledgementsTableTable,
+          Acknowledgement
+        >,
+      ),
+      Acknowledgement,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -7612,4 +8214,6 @@ class $AppDatabaseManager {
       $$HealthRecordsTableTableTableManager(_db, _db.healthRecordsTable);
   $$OutboxOperationsTableTableManager get outboxOperations =>
       $$OutboxOperationsTableTableManager(_db, _db.outboxOperations);
+  $$AcknowledgementsTableTableTableManager get acknowledgementsTable =>
+      $$AcknowledgementsTableTableTableManager(_db, _db.acknowledgementsTable);
 }
