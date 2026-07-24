@@ -4,7 +4,7 @@ import 'package:drift/drift.dart' as drift;
 import 'package:intl/intl.dart';
 import '../../../../core/providers/app_providers.dart';
 import '../../../../data/local/database.dart';
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_theme.dart';
 
 class RecentActivitiesFeed extends ConsumerWidget {
   const RecentActivitiesFeed({super.key});
@@ -44,9 +44,10 @@ class RecentActivitiesFeed extends ConsumerWidget {
           width: double.infinity,
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.03),
+            color: AppTheme.surfaceContainerLowest,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withOpacity(0.05)),
+            border: Border.all(color: AppTheme.outlineVariant.withValues(alpha: 0.3)),
+            boxShadow: AppTheme.softShadow,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -56,7 +57,7 @@ class RecentActivitiesFeed extends ConsumerWidget {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
-                  color: Colors.white,
+                  color: AppTheme.onSurface,
                 ),
               ),
               const SizedBox(height: 16),
@@ -75,7 +76,7 @@ class RecentActivitiesFeed extends ConsumerWidget {
                 ],
 
                 if (yesterdayActivities.isNotEmpty) ...[
-                  const Divider(color: Colors.white12),
+                  const Divider(color: AppTheme.outlineVariant),
                   const SizedBox(height: 16),
                   _buildSectionHeader('Yesterday'),
                   ...yesterdayActivities.map((a) => _buildActivityItem(a)),
@@ -96,7 +97,7 @@ class RecentActivitiesFeed extends ConsumerWidget {
         style: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w500,
-          color: Colors.white.withOpacity(0.5),
+          color: AppTheme.onSurfaceVariant,
         ),
       ),
     );
@@ -109,7 +110,7 @@ class RecentActivitiesFeed extends ConsumerWidget {
         text,
         style: TextStyle(
           fontSize: 14,
-          color: Colors.white.withOpacity(0.3),
+          color: AppTheme.onSurfaceVariant.withValues(alpha: 0.6),
           fontStyle: FontStyle.italic,
         ),
       ),
@@ -142,7 +143,7 @@ class RecentActivitiesFeed extends ConsumerWidget {
               width: 6,
               height: 6,
               decoration: const BoxDecoration(
-                color: AppColors.saffron,
+                color: AppTheme.primaryContainer,
                 shape: BoxShape.circle,
               ),
             ),
@@ -154,7 +155,7 @@ class RecentActivitiesFeed extends ConsumerWidget {
                     activity.content,
                     style: const TextStyle(
                       fontSize: 15,
-                      color: Colors.white,
+                      color: AppTheme.onSurface,
                       height: 1.3,
                     ),
                   ),
@@ -163,7 +164,7 @@ class RecentActivitiesFeed extends ConsumerWidget {
                     DateFormat('h:mm a').format(activity.createdAt),
                     style: TextStyle(
                       fontSize: 12,
-                      color: Colors.white.withOpacity(0.4),
+                      color: AppTheme.onSurfaceVariant,
                     ),
                   ),
                 ],
