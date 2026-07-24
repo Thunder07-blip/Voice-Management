@@ -6,6 +6,7 @@ import 'package:drift/drift.dart' as drift;
 import '../../../core/theme/app_theme.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/providers/auth_provider.dart';
+import '../../../core/utils/meal_calculator.dart';
 import '../../../data/local/database.dart';
 
 class MealPlanningScreen extends ConsumerStatefulWidget {
@@ -332,21 +333,10 @@ class _KitchenView extends ConsumerWidget {
             final dateStr = DateFormat('yyyy-MM-dd').format(date);
             final todaysPlans = plans.where((p) => p.date == dateStr).toList();
 
-            // Calculate Meals Required = (Present Members) - (Present Members who selected Not Eating)
-            // Or simpler: Count all Present Members who have NOT selected "Not Eating"
-            
-            int reqBreakfast = 0;
-            int reqLunch = 0;
-            int reqDinner = 0;
-
-            for (final member in members) {
-              if (member.currentStatus == 'Present') {
-                final plan = todaysPlans.where((p) => p.memberId == member.id).firstOrNull;
-                if (plan?.breakfast ?? true) reqBreakfast++;
-                if (plan?.lunch ?? true) reqLunch++;
-                if (plan?.dinner ?? true) reqDinner++;
-              }
-            }
+            final result = MealCalculator.calculateMeals(
+              members: members,
+              todaysPlans: todaysPlans,
+            );
 
             return ListView(
               padding: const EdgeInsets.all(20),
@@ -358,26 +348,26 @@ class _KitchenView extends ConsumerWidget {
                 const SizedBox(height: 16),
                 _KitchenMealCard(
                   title: 'Breakfast',
-                  totalMembers: totalMembers,
-                  onLeave: onLeave,
-                  notEating: notEatingBreakfast,
-                  mealsRequired: reqBreakfast,
+                  totalMembers: result.totalMembers,
+                  onLeave: result.onLeave,
+                  notEating: result.notEatingBreakfast,
+                  mealsRequired: result.requiredBreakfast,
                 ),
                 const SizedBox(height: 16),
                 _KitchenMealCard(
                   title: 'Lunch',
-                  totalMembers: totalMembers,
-                  onLeave: onLeave,
-                  notEating: notEatingLunch,
-                  mealsRequired: reqLunch,
+                  totalMembers: result.totalMembers,
+                  onLeave: result.onLeave,
+                  notEating: result.notEatingLunch,
+                  mealsRequired: result.requiredLunch,
                 ),
                 const SizedBox(height: 16),
                 _KitchenMealCard(
                   title: 'Dinner',
-                  totalMembers: totalMembers,
-                  onLeave: onLeave,
-                  notEating: notEatingDinner,
-                  mealsRequired: reqDinner,
+                  totalMembers: result.totalMembers,
+                  onLeave: result.onLeave,
+                  notEating: result.notEatingDinner,
+                  mealsRequired: result.requiredDinner,
                 ),
               ],
             );
