@@ -264,7 +264,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<void> seedInitialAdmin() async {
-    // 1. Create Project Manager Role
+    // 1. Create Roles
     const pmRoleId = 'role-pm-001';
     await into(rolesTable).insert(RolesTableCompanion.insert(
       id: pmRoleId,
@@ -274,30 +274,25 @@ class AppDatabase extends _$AppDatabase {
       updatedAt: DateTime.now(),
     ), mode: InsertMode.insertOrIgnore);
 
-    // 2. Create Kitchen Incharge Role and Permission
-    const kitchenRoleId = 'role-kitchen-001';
-    const kitchenPermId = 'perm-kitchen-001';
-
-    await into(permissionsTable).insert(PermissionsTableCompanion.insert(
-      id: kitchenPermId,
-      permissionKey: 'manage_kitchen',
-      description: const Value('Access to kitchen analytics and meal planning summaries'),
-    ), mode: InsertMode.insertOrIgnore);
-
+    const ocRoleId = 'role-oc-001';
     await into(rolesTable).insert(RolesTableCompanion.insert(
-      id: kitchenRoleId,
-      name: 'Kitchen Incharge',
-      description: const Value('Manages kitchen operations.'),
+      id: ocRoleId,
+      name: 'Overall Coordinator',
+      description: const Value('System access.'),
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     ), mode: InsertMode.insertOrIgnore);
 
-    await into(rolePermissionsTable).insert(RolePermissionsTableCompanion.insert(
-      roleId: kitchenRoleId,
-      permissionId: kitchenPermId,
+    const aocRoleId = 'role-aoc-001';
+    await into(rolesTable).insert(RolesTableCompanion.insert(
+      id: aocRoleId,
+      name: 'Assistant Overall Coordinator',
+      description: const Value('System access.'),
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
     ), mode: InsertMode.insertOrIgnore);
 
-    // 3. Create Acknowledgement Permission and assign to PM
+    // 2. Create Permissions
     const ackPermId = 'perm-ack-001';
     await into(permissionsTable).insert(PermissionsTableCompanion.insert(
       id: ackPermId,
@@ -305,24 +300,36 @@ class AppDatabase extends _$AppDatabase {
       description: const Value('Can post new acknowledgements on the board'),
     ), mode: InsertMode.insertOrIgnore);
 
-    await into(rolePermissionsTable).insert(RolePermissionsTableCompanion.insert(
-      roleId: pmRoleId,
-      permissionId: ackPermId,
-    ), mode: InsertMode.insertOrIgnore);
+    await into(rolePermissionsTable).insert(RolePermissionsTableCompanion.insert(roleId: pmRoleId, permissionId: ackPermId), mode: InsertMode.insertOrIgnore);
+    await into(rolePermissionsTable).insert(RolePermissionsTableCompanion.insert(roleId: ocRoleId, permissionId: ackPermId), mode: InsertMode.insertOrIgnore);
+    await into(rolePermissionsTable).insert(RolePermissionsTableCompanion.insert(roleId: aocRoleId, permissionId: ackPermId), mode: InsertMode.insertOrIgnore);
 
-    // 4. Create the first default member (VO-001) - Admin
-    await into(membersTable).insert(MembersTableCompanion.insert(
-      id: 'member-001',
-      memberId: const Value('VO-001'),
-      pinHash: const Value('1234'), // Default PIN for MVP
-      name: 'Initial Admin',
-      memberType: const Value('working'),
-      roleId: const Value(pmRoleId),
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-    ), mode: InsertMode.insertOrIgnore);
+    // 3. Create Members
+    final membersToInsert = [
+      {'id': 'member-001', 'memberId': 'VO-001', 'name': 'HG Radhapad pankaj pr', 'roleId': pmRoleId},
+      {'id': 'member-002', 'memberId': 'VO-002', 'name': 'Piyush Jagzap', 'roleId': ocRoleId},
+      {'id': 'member-003', 'memberId': 'VO-003', 'name': 'Sajal Patil', 'roleId': aocRoleId},
+      {'id': 'member-004', 'memberId': 'VO-004', 'name': 'Soham Dode', 'roleId': null},
+      {'id': 'member-005', 'memberId': 'VO-005', 'name': 'Sushant Nikaju', 'roleId': null},
+      {'id': 'member-006', 'memberId': 'VO-006', 'name': 'Pratik Gadade', 'roleId': null},
+      {'id': 'member-007', 'memberId': 'VO-007', 'name': 'Mayur Patil', 'roleId': null},
+      {'id': 'member-008', 'memberId': 'VO-008', 'name': 'Aditya Deshmukh', 'roleId': null},
+      {'id': 'member-009', 'memberId': 'VO-009', 'name': 'Dinesh Dhanuka', 'roleId': null},
+      {'id': 'member-010', 'memberId': 'VO-010', 'name': 'Preet', 'roleId': null},
+    ];
 
-    // End of seed data
+    for (final memberData in membersToInsert) {
+      await into(membersTable).insert(MembersTableCompanion.insert(
+        id: memberData['id'] as String,
+        memberId: Value(memberData['memberId'] as String),
+        pinHash: const Value('1234'), // Default PIN
+        name: memberData['name'] as String,
+        memberType: const Value('working'),
+        roleId: memberData['roleId'] == null ? const Value.absent() : Value(memberData['roleId'] as String),
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      ), mode: InsertMode.insertOrIgnore);
+    }
   }
 
   // Helpers to check if a record is pending sync

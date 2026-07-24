@@ -183,15 +183,14 @@ class DashboardScreen extends ConsumerWidget {
                 style: theme.textTheme.titleLarge,
               ),
               const SizedBox(height: 12),
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
+              Row(
                 children: [
-                  ActionChip(
-                    avatar: const Icon(Icons.person_add, size: 16, color: AppTheme.onSurfaceVariant),
-                    label: const Text('Add Member', style: TextStyle(color: AppTheme.onSurfaceVariant)),
-                    backgroundColor: AppTheme.surfaceContainerHigh,
-                    onPressed: () {
+                  _QuickActionButton(
+                    icon: Icons.person_add,
+                    label: 'Add Member',
+                    color: AppTheme.surfaceContainerHigh,
+                    iconColor: AppTheme.primary,
+                    onTap: () {
                       showModalBottomSheet(
                         context: context,
                         isScrollControlled: true,
@@ -201,11 +200,13 @@ class DashboardScreen extends ConsumerWidget {
                       );
                     },
                   ),
-                  ActionChip(
-                    avatar: const Icon(Icons.add_task, size: 16, color: AppTheme.onSurfaceVariant),
-                    label: const Text('Create Task', style: TextStyle(color: AppTheme.onSurfaceVariant)),
-                    backgroundColor: AppTheme.surfaceContainerHigh,
-                    onPressed: () {
+                  const SizedBox(width: 12),
+                  _QuickActionButton(
+                    icon: Icons.add_task,
+                    label: 'Create Task',
+                    color: AppTheme.surfaceContainerHigh,
+                    iconColor: AppTheme.primary,
+                    onTap: () {
                       showModalBottomSheet(
                         context: context,
                         isScrollControlled: true,
@@ -215,11 +216,13 @@ class DashboardScreen extends ConsumerWidget {
                       );
                     },
                   ),
-                  ActionChip(
-                    avatar: const Icon(Icons.campaign, size: 16, color: AppTheme.onSurfaceVariant),
-                    label: const Text('Post Notice', style: TextStyle(color: AppTheme.onSurfaceVariant)),
-                    backgroundColor: AppTheme.surfaceContainerHigh,
-                    onPressed: () {
+                  const SizedBox(width: 12),
+                  _QuickActionButton(
+                    icon: Icons.campaign,
+                    label: 'Post Notice',
+                    color: AppTheme.surfaceContainerHigh,
+                    iconColor: AppTheme.primary,
+                    onTap: () {
                       showModalBottomSheet(
                         context: context,
                         isScrollControlled: true,
@@ -641,6 +644,76 @@ class _ModuleCard extends StatelessWidget {
             ),
             Icon(Icons.arrow_forward_ios, color: iconColor, size: 16),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _QuickActionButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+  final Color color;
+  final Color iconColor;
+
+  const _QuickActionButton({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+    required this.color,
+    required this.iconColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Ink(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppTheme.outlineVariant.withValues(alpha: 0.3)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.02),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: iconColor.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: iconColor, size: 24),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.onSurface,
+                    letterSpacing: -0.2,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
