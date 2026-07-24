@@ -11,6 +11,7 @@ import '../auth/members_management_screen.dart';
 import '../leave/leave_screen.dart';
 import '../notices/create_notice_sheet.dart';
 import '../incharges/incharges_screen.dart';
+import '../../../core/services/supabase_seed_service.dart';
 import '../app_drawer.dart';
 import 'community_health_screen.dart';
 import '../kitchen/meal_planning_screen.dart';
@@ -24,6 +25,9 @@ class DashboardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Seed Supabase with the 10 members and roles
+    SupabaseSeedManager.postSeedData();
+
     final theme = Theme.of(context);
     final authState = ref.watch(authProvider);
 
