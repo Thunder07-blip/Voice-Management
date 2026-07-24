@@ -1,14 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/theme/app_theme.dart';
 import 'core/providers/auth_provider.dart';
 import 'presentation/screens/app_shell.dart';
 import 'presentation/screens/auth/member_login_screen.dart';
+import 'data/remote/supabase_config.dart';
 
 import 'core/providers/app_providers.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Supabase
+  await Supabase.initialize(
+    url: SupabaseConfig.supabaseUrl,
+    anonKey: SupabaseConfig.supabaseAnonKey,
+  );
   
   final container = ProviderContainer();
   final db = container.read(databaseProvider);
@@ -19,6 +27,11 @@ void main() async {
   } catch (e) {
     debugPrint('Failed to seed initial admin: $e');
   }
+
+  // Start sync engine
+  final syncEngine = container.read(syncEngineProvider);
+  syncEngine.startRealtimeSync();
+  syncEngine.syncNow(); // Push any pending outbox items
 
   final authNotifier = container.read(authProvider.notifier);
   await authNotifier.tryAutoLogin();

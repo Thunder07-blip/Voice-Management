@@ -1,26 +1,10 @@
-import 'package:dio/dio.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'supabase_config.dart';
 
+/// Replaces the old Dio-based ApiClient.
+/// Talks directly to Supabase REST API (auto-generated PostgREST).
 class ApiClient {
-  static const String _baseUrl = 'http://10.0.2.2:3000/api'; // Android emulator → localhost
-  
-  late final Dio _dio;
-
-  ApiClient() {
-    _dio = Dio(BaseOptions(
-      baseUrl: _baseUrl,
-      connectTimeout: const Duration(seconds: 10),
-      receiveTimeout: const Duration(seconds: 10),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    ));
-
-    _dio.interceptors.add(LogInterceptor(
-      requestBody: true,
-      responseBody: true,
-      logPrint: (log) => print('[API] $log'),
-    ));
-  }
+  SupabaseClient get _supabase => SupabaseConfig.client;
 
   // ── Members ─────────────────────────────────────────────────────
 
@@ -29,33 +13,38 @@ class ApiClient {
     String? memberType,
     String? groupId,
   }) async {
-    final params = <String, String>{};
-    if (search != null) params['search'] = search;
-    if (memberType != null) params['member_type'] = memberType;
-    if (groupId != null) params['group_id'] = groupId;
-
-    final response = await _dio.get('/members', queryParameters: params);
-    return List<Map<String, dynamic>>.from(response.data['data']);
+    var query = _supabase.from('members').select();
+    if (memberType != null) query = query.eq('member_type', memberType);
+    if (groupId != null) query = query.eq('group_id', groupId);
+    
+    final data = await query;
+    
+    if (search != null && search.isNotEmpty) {
+      final s = search.toLowerCase();
+      return data.where((m) => 
+        (m['name'] as String? ?? '').toLowerCase().contains(s)
+      ).toList();
+    }
+    return List<Map<String, dynamic>>.from(data);
   }
 
   Future<Map<String, dynamic>> getMember(String id) async {
-    final response = await _dio.get('/members/$id');
-    return response.data['data'] as Map<String, dynamic>;
+    final data = await _supabase.from('members').select().eq('id', id).single();
+    return data;
   }
 
   Future<Map<String, dynamic>> createMember(Map<String, dynamic> data) async {
-    final response = await _dio.post('/members', data: data);
-    return response.data['data'] as Map<String, dynamic>;
+    final result = await _supabase.from('members').insert(data).select().single();
+    return result;
   }
 
-  Future<Map<String, dynamic>> updateMember(
-      String id, Map<String, dynamic> data) async {
-    final response = await _dio.put('/members/$id', data: data);
-    return response.data['data'] as Map<String, dynamic>;
+  Future<Map<String, dynamic>> updateMember(String id, Map<String, dynamic> data) async {
+    final result = await _supabase.from('members').update(data).eq('id', id).select().single();
+    return result;
   }
 
   Future<void> deleteMember(String id) async {
-    await _dio.delete('/members/$id');
+    await _supabase.from('members').delete().eq('id', id);
   }
 
   // ── Tasks ───────────────────────────────────────────────────────
@@ -65,78 +54,95 @@ class ApiClient {
     String? priority,
     String? sort,
   }) async {
-    final params = <String, String>{};
-    if (status != null) params['status'] = status;
-    if (priority != null) params['priority'] = priority;
-    if (sort != null) params['sort'] = sort;
-
-    final response = await _dio.get('/tasks', queryParameters: params);
-    return List<Map<String, dynamic>>.from(response.data['data']);
+    var query = _supabase.from('tasks').select();
+    if (status != null) query = query.eq('status', status);
+    if (priority != null) query = query.eq('priority', priority);
+    
+    final data = await query;
+    return List<Map<String, dynamic>>.from(data);
   }
 
   Future<Map<String, dynamic>> getTask(String id) async {
-    final response = await _dio.get('/tasks/$id');
-    return response.data['data'] as Map<String, dynamic>;
+    final data = await _supabase.from('tasks').select().eq('id', id).single();
+    return data;
   }
 
   Future<Map<String, dynamic>> createTask(Map<String, dynamic> data) async {
-    final response = await _dio.post('/tasks', data: data);
-    return response.data['data'] as Map<String, dynamic>;
+    final result = await _supabase.from('tasks').insert(data).select().single();
+    return result;
   }
 
-  Future<Map<String, dynamic>> updateTask(
-      String id, Map<String, dynamic> data) async {
-    final response = await _dio.put('/tasks/$id', data: data);
-    return response.data['data'] as Map<String, dynamic>;
+  Future<Map<String, dynamic>> updateTask(String id, Map<String, dynamic> data) async {
+    final result = await _supabase.from('tasks').update(data).eq('id', id).select().single();
+    return result;
   }
 
   // ── Groups ──────────────────────────────────────────────────────
 
   Future<List<Map<String, dynamic>>> getGroups() async {
-    final response = await _dio.get('/groups');
-    return List<Map<String, dynamic>>.from(response.data['data']);
+    final data = await _supabase.from('groups').select();
+    return List<Map<String, dynamic>>.from(data);
   }
 
   // ── Roles ───────────────────────────────────────────────────────
 
   Future<List<Map<String, dynamic>>> getRoles() async {
-    final response = await _dio.get('/roles');
-    return List<Map<String, dynamic>>.from(response.data['data']);
+    final data = await _supabase.from('roles').select();
+    return List<Map<String, dynamic>>.from(data);
   }
 
   // ── Notices ─────────────────────────────────────────────────────
 
   Future<List<Map<String, dynamic>>> getNotices() async {
-    final response = await _dio.get('/notices');
-    return List<Map<String, dynamic>>.from(response.data['data']);
+    final data = await _supabase.from('notices').select();
+    return List<Map<String, dynamic>>.from(data);
   }
 
   Future<Map<String, dynamic>> createNotice(Map<String, dynamic> data) async {
-    final response = await _dio.post('/notices', data: data);
-    return response.data['data'] as Map<String, dynamic>;
+    final result = await _supabase.from('notices').insert(data).select().single();
+    return result;
   }
 
   // ── Leaves ──────────────────────────────────────────────────────
 
   Future<List<Map<String, dynamic>>> getLeaves({String? memberId}) async {
-    final params = <String, String>{};
-    if (memberId != null) params['member_id'] = memberId;
-
-    final response = await _dio.get('/leaves', queryParameters: params);
-    return List<Map<String, dynamic>>.from(response.data['data']);
+    var query = _supabase.from('leaves').select();
+    if (memberId != null) query = query.eq('member_id', memberId);
+    
+    final data = await query;
+    return List<Map<String, dynamic>>.from(data);
   }
 
   Future<Map<String, dynamic>> createLeave(Map<String, dynamic> data) async {
-    final response = await _dio.post('/leaves', data: data);
-    return response.data['data'] as Map<String, dynamic>;
+    final result = await _supabase.from('leaves').insert(data).select().single();
+    return result;
   }
 
-  // ── Sync ────────────────────────────────────────────────────────
+  // ── Sync (Bulk Upsert) ──────────────────────────────────────────
 
-  Future<Map<String, dynamic>> syncOutbox(
-      List<Map<String, dynamic>> operations) async {
-    final response =
-        await _dio.post('/sync', data: {'operations': operations});
-    return response.data['data'] as Map<String, dynamic>;
+  /// Processes outbox operations by upserting directly to Supabase tables.
+  Future<Map<String, dynamic>> syncOutbox(List<Map<String, dynamic>> operations) async {
+    final results = <Map<String, dynamic>>[];
+
+    for (final op in operations) {
+      final table = op['table'] as String;
+      final operation = op['operation'] as String;
+      final data = op['data'] as Map<String, dynamic>;
+      final id = op['id'] as String;
+
+      try {
+        if (operation == 'delete') {
+          await _supabase.from(table).delete().eq('id', data['id'] ?? '');
+        } else {
+          // upsert handles both insert and update
+          await _supabase.from(table).upsert(data);
+        }
+        results.add({'id': id, 'success': true});
+      } catch (e) {
+        results.add({'id': id, 'success': false, 'error': e.toString()});
+      }
+    }
+
+    return {'results': results};
   }
 }

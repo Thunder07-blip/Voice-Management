@@ -1,15 +1,16 @@
 import 'dart:convert';
 import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../local/database.dart';
-import '../remote/api_client.dart';
+import '../remote/supabase_config.dart';
 
 class SyncEngine {
   final AppDatabase _db;
-  final ApiClient _apiClient;
   bool _isSyncing = false;
+  final List<RealtimeChannel> _channels = [];
 
-  SyncEngine(this._db, this._apiClient) {
+  SyncEngine(this._db) {
     // Listen to network changes to trigger sync when coming online
     Connectivity().onConnectivityChanged.listen((List<ConnectivityResult> results) {
       if (results.contains(ConnectivityResult.mobile) ||
@@ -19,7 +20,40 @@ class SyncEngine {
     });
   }
 
-  /// Attempts to push all pending outbox operations to the remote server.
+  SupabaseClient get _supabase => SupabaseConfig.client;
+
+  /// Subscribe to Supabase Realtime changes on key tables.
+  /// When a remote change happens, it gets written to local Drift DB.
+  void startRealtimeSync() {
+    final tablesToSync = [
+      'members', 'tasks', 'notices', 'leaves', 'roles',
+      'groups', 'permissions', 'role_permissions',
+      'meal_plans', 'health_records', 'acknowledgements',
+    ];
+
+    for (final table in tablesToSync) {
+      final channel = _supabase
+          .channel('realtime_$table')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: table,
+            callback: (payload) {
+              _handleRealtimeChange(table, payload);
+            },
+          )
+          .subscribe();
+      _channels.add(channel);
+    }
+  }
+
+  void _handleRealtimeChange(String table, PostgresChangePayload payload) {
+    // For now, just log realtime events.
+    // In production, you'd upsert/delete from local Drift DB here.
+    print('[SyncEngine] Realtime event on $table: ${payload.eventType}');
+  }
+
+  /// Attempts to push all pending outbox operations to Supabase.
   Future<void> syncNow() async {
     if (_isSyncing) return;
     
@@ -37,34 +71,28 @@ class SyncEngine {
         return;
       }
 
-      // Format operations for the bulk sync API
-      final operationsPayload = pendingOps.map((op) {
-        return {
-          'id': op.id,
-          'table': op.targetTable,
-          'operation': op.operation,
-          'data': jsonDecode(op.payloadJson),
-          'clientTimestamp': op.createdAt.toIso8601String(),
-        };
-      }).toList();
+      for (final op in pendingOps) {
+        try {
+          final data = jsonDecode(op.payloadJson) as Map<String, dynamic>;
+          final table = op.targetTable;
+          final operation = op.operation;
 
-      // Send to backend
-      final response = await _apiClient.syncOutbox(operationsPayload);
-      
-      // The backend returns results array: { id, success, error }
-      final results = response['results'] as List<dynamic>? ?? [];
+          if (operation == 'delete') {
+            await _supabase.from(table).delete().eq('id', data['id'] ?? '');
+          } else {
+            // upsert handles both insert and update
+            await _supabase.from(table).upsert(data);
+          }
 
-      // Delete successfully synced operations from outbox
-      for (final result in results) {
-        if (result['success'] == true) {
-          final opId = result['id'] as String;
+          // Successfully synced — remove from outbox
           await (_db.delete(_db.outboxOperations)
-                ..where((tbl) => tbl.id.equals(opId)))
+                ..where((tbl) => tbl.id.equals(op.id)))
               .go();
-        } else {
-          print('[SyncEngine] Failed to sync operation ${result['id']}: ${result['error']}');
-          // Depending on the error (e.g. conflict, bad request), we might want to flag it or delete it.
-          // For now, leave it in the outbox to retry.
+          
+          print('[SyncEngine] ✅ Synced ${op.operation} on $table');
+        } catch (e) {
+          print('[SyncEngine] ❌ Failed to sync operation ${op.id}: $e');
+          // Leave in outbox to retry later
         }
       }
     } catch (e) {
@@ -80,10 +108,8 @@ class SyncEngine {
     required String operation,
     required Map<String, dynamic> data,
   }) async {
-    // 1. Determine a unique ID for the outbox operation (can be data['id'] + timestamp)
     final id = '${data['id']}_${DateTime.now().millisecondsSinceEpoch}';
 
-    // 2. Save to local outbox
     await _db.into(_db.outboxOperations).insert(
           OutboxOperation(
             id: id,
@@ -94,7 +120,15 @@ class SyncEngine {
           ),
         );
 
-    // 3. Attempt immediate sync in background
+    // Attempt immediate sync in background
     syncNow();
+  }
+
+  /// Clean up realtime subscriptions
+  void dispose() {
+    for (final channel in _channels) {
+      _supabase.removeChannel(channel);
+    }
+    _channels.clear();
   }
 }

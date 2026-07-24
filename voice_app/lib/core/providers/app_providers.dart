@@ -23,8 +23,7 @@ final databaseProvider = Provider<AppDatabase>((ref) {
 
 final syncEngineProvider = Provider<SyncEngine>((ref) {
   final db = ref.watch(databaseProvider);
-  final apiClient = ref.watch(apiClientProvider);
-  return SyncEngine(db, apiClient);
+  return SyncEngine(db);
 });
 
 // ── Database Streams ────────────────────────────────────────────────
