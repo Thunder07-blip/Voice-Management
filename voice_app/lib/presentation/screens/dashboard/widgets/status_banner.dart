@@ -107,7 +107,7 @@ class StatusBanner extends ConsumerWidget {
                     backgroundColor: AppTheme.surface.withOpacity(0.5),
                     foregroundColor: AppTheme.onTertiaryContainer,
                   ),
-                  child: const Text('Update Return'),
+                  child: const Text('Update', maxLines: 1, overflow: TextOverflow.ellipsis),
                 ),
               ),
               const SizedBox(width: 12),
@@ -115,12 +115,34 @@ class StatusBanner extends ConsumerWidget {
                 child: FilledButton(
                   onPressed: () async {
                     if (activeLeave != null) {
-                      final syncService = ref.read(leaveSyncServiceProvider);
-                      await syncService.confirmReturn(activeLeave);
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Welcome back! Meal planning is open.')),
-                        );
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Are you sure?'),
+                          content: const Text('Are you really back? This will end your leave and restore your status to Present.'),
+                          backgroundColor: AppTheme.surfaceContainerLowest,
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: const Text('Cancel'),
+                            ),
+                            FilledButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              style: FilledButton.styleFrom(backgroundColor: AppTheme.tertiary, foregroundColor: AppTheme.onTertiary),
+                              child: const Text('Yes, I\'m back'),
+                            ),
+                          ],
+                        ),
+                      );
+
+                      if (confirm == true) {
+                        final syncService = ref.read(leaveSyncServiceProvider);
+                        await syncService.confirmReturn(activeLeave);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Welcome back! Meal planning is open.')),
+                          );
+                        }
                       }
                     }
                   },
@@ -128,7 +150,7 @@ class StatusBanner extends ConsumerWidget {
                     backgroundColor: AppTheme.tertiary,
                     foregroundColor: AppTheme.onTertiary,
                   ),
-                  child: const Text('I Have Returned'),
+                  child: const Text('I\'m Back', maxLines: 1, overflow: TextOverflow.ellipsis),
                 ),
               ),
             ],

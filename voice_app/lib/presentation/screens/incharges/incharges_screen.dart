@@ -68,26 +68,11 @@ class _InchargesScreenState extends State<InchargesScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Search Bar
-            Container(
-              decoration: BoxDecoration(
-                color: AppTheme.surfaceContainerLowest,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppTheme.outlineVariant),
-              ),
-              child: TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: 'Search by name or role...',
-                  prefixIcon: const Icon(Icons.search, color: AppTheme.onSurfaceVariant),
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(
-                        color: AppTheme.primaryContainer, width: 2),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                ),
+            TextField(
+              controller: _searchController,
+              decoration: const InputDecoration(
+                hintText: 'Search by name or role...',
+                prefixIcon: Icon(Icons.search, color: AppTheme.onSurfaceVariant),
               ),
             ),
             const SizedBox(height: 24),

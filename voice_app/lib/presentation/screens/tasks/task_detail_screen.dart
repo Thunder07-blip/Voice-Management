@@ -76,7 +76,8 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
     final authState = ref.watch(authProvider);
     final canManageTask = authState.hasPermission('CREATE_TASK') || 
                           ['Project Manager', 'Overall Coordinator', 'Assistant Overall Coordinator']
-                          .contains(authState.currentRole?.name);
+                          .contains(authState.currentRole?.name) ||
+                          widget.task.assignedTo == authState.currentMember?.id;
 
     return Scaffold(
       backgroundColor: AppTheme.surface,

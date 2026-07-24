@@ -123,28 +123,11 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
             child: Column(
               children: [
-                Container(
-                  decoration: BoxDecoration(
-                    color: AppTheme.surfaceContainerLowest,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppTheme.outlineVariant),
-                  ),
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: 'Search tasks...',
-                      prefixIcon: const Icon(Icons.search,
-                          color: AppTheme.onSurfaceVariant),
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: const BorderSide(
-                            color: AppTheme.primaryContainer, width: 2),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 16),
-                    ),
+                TextField(
+                  controller: _searchController,
+                  decoration: const InputDecoration(
+                    hintText: 'Search tasks...',
+                    prefixIcon: Icon(Icons.search, color: AppTheme.onSurfaceVariant),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -230,7 +213,10 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                     // Check outbox to see if this task is pending sync
                     final isPendingSync = ref.watch(isPendingSyncProvider(task.id));
 
-                    final canToggle = ['Project Manager', 'Overall Coordinator', 'Assistant Overall Coordinator'].contains(authState.currentRole?.name);
+                    final canToggle = authState.hasPermission('CREATE_TASK') || 
+                                      ['Project Manager', 'Overall Coordinator', 'Assistant Overall Coordinator']
+                                      .contains(authState.currentRole?.name) ||
+                                      task.assignedTo == authState.currentMember?.id;
 
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 16),
@@ -334,11 +320,13 @@ class _TaskListItem extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.only(top: 4.0),
-            child: InkWell(
-              onTap: onToggle,
-              borderRadius: BorderRadius.circular(4),
-              child: Container(
+            padding: const EdgeInsets.only(top: 2.0),
+            child: IconButton(
+              onPressed: onToggle,
+              iconSize: 24,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              icon: Container(
                 width: 24,
                 height: 24,
                 decoration: BoxDecoration(
@@ -353,12 +341,11 @@ class _TaskListItem extends StatelessWidget {
                 child: isCompleted
                     ? const Icon(Icons.check,
                         size: 16, color: AppTheme.onSecondary)
-                    : const Icon(Icons.check,
-                        size: 16, color: Colors.transparent),
+                    : null,
               ),
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

@@ -164,40 +164,23 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
                   const SizedBox(height: 24),
 
                   // Search Bar
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppTheme.surfaceContainerLowest,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppTheme.outlineVariant),
-                    ),
-                    child: TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        hintText: 'Search member...',
-                        prefixIcon: const Icon(Icons.search,
-                            color: AppTheme.onSurfaceVariant),
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: const BorderSide(
-                              color: AppTheme.primaryContainer, width: 2),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 16),
-                      ),
+                  TextField(
+                    controller: _searchController,
+                    decoration: const InputDecoration(
+                      hintText: 'Search member...',
+                      prefixIcon: Icon(Icons.search, color: AppTheme.onSurfaceVariant),
                     ),
                   ),
                   const SizedBox(height: 24),
 
                   // Filter Chips
                   SizedBox(
-                    height: 40,
+                    height: 48,
                     child: ListView(
                       scrollDirection: Axis.horizontal,
                       children: [
                         FilterChip(
-                          label: const Text('Working', style: TextStyle(color: Colors.black)),
+                          label: const Text('Working ', style: TextStyle(color: AppTheme.onSurface)),
                           selected: _isWorkingOnly,
                           onSelected: (val) {
                             setState(() => _isWorkingOnly = val);
@@ -214,8 +197,8 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
                         const SizedBox(width: 8),
                         ActionChip(
                           label: Text(
-                            _selectedYears.isEmpty ? 'Year' : 'Year (${_selectedYears.length})',
-                            style: const TextStyle(color: Colors.black),
+                            _selectedYears.isEmpty ? 'Year ' : 'Year (${_selectedYears.length}) ',
+                            style: const TextStyle(color: AppTheme.onSurface),
                           ),
                           backgroundColor: _selectedYears.isNotEmpty ? AppTheme.primaryContainer : AppTheme.surfaceContainerLowest,
                           shape: RoundedRectangleBorder(
@@ -229,8 +212,8 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
                         const SizedBox(width: 8),
                         ActionChip(
                           label: Text(
-                            _selectedGroups.isEmpty ? 'Group' : 'Group (${_selectedGroups.length})',
-                            style: const TextStyle(color: Colors.black),
+                            _selectedGroups.isEmpty ? 'Group ' : 'Group (${_selectedGroups.length}) ',
+                            style: const TextStyle(color: AppTheme.onSurface),
                           ),
                           backgroundColor: _selectedGroups.isNotEmpty ? AppTheme.primaryContainer : AppTheme.surfaceContainerLowest,
                           shape: RoundedRectangleBorder(

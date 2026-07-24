@@ -50,7 +50,7 @@ class LeaveScreen extends ConsumerWidget {
             );
           },
         ),
-        floatingActionButton: !isCoordinator ? FloatingActionButton.extended(
+        floatingActionButton: FloatingActionButton.extended(
           onPressed: () {
             showModalBottomSheet(
               context: context,
@@ -62,7 +62,7 @@ class LeaveScreen extends ConsumerWidget {
           },
           icon: const Icon(Icons.add),
           label: const Text('Request Leave'),
-        ) : null,
+        ),
       ),
     );
   }

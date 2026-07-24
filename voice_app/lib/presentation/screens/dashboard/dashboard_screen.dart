@@ -44,6 +44,10 @@ class DashboardScreen extends ConsumerWidget {
     final onLeaveCount = leavesAsync.value
             ?.where((l) => l.status == 'approved')
             .length ?? 0;
+            
+    final pendingLeavesCount = leavesAsync.value
+            ?.where((l) => l.status == 'pending')
+            .length ?? 0;
 
     // Dummy value for sick for now, as it requires a Community Health feature
     const sickCount = 2; 
@@ -140,6 +144,7 @@ class DashboardScreen extends ConsumerWidget {
                     value: onLeaveCount.toString(),
                     color: AppTheme.tertiaryContainer,
                     iconColor: AppTheme.onTertiaryContainer,
+                    showBadge: pendingLeavesCount > 0,
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LeaveScreen())),
                   ),
                 ),
@@ -489,6 +494,7 @@ class _SummaryCard extends StatelessWidget {
   final String value;
   final Color color;
   final Color iconColor;
+  final bool showBadge;
   final VoidCallback onTap;
 
   const _SummaryCard({
@@ -497,6 +503,7 @@ class _SummaryCard extends StatelessWidget {
     required this.value,
     required this.color,
     required this.iconColor,
+    this.showBadge = false,
     required this.onTap,
   });
 
@@ -516,13 +523,29 @@ class _SummaryCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: color,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, size: 24, color: iconColor),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, size: 24, color: iconColor),
+                ),
+                if (showBadge)
+                  Container(
+                    width: 10,
+                    height: 10,
+                    margin: const EdgeInsets.only(top: 4, right: 4),
+                    decoration: const BoxDecoration(
+                      color: AppTheme.error,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(height: 16),
             Text(

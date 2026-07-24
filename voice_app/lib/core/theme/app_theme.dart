@@ -174,6 +174,7 @@ class AppTheme {
           side: const BorderSide(color: outlineVariant),
           shape: const StadiumBorder(),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          labelPadding: const EdgeInsets.symmetric(horizontal: 4),
         ),
 
         // FloatingActionButton — 16px radius, saffron
