@@ -274,7 +274,7 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
                   ],
                 ),
               ),
-            )
+            ),
           Consumer(
             builder: (context, ref, child) {
               final membersAsync = ref.watch(membersStreamProvider);
