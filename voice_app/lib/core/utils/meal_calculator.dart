@@ -9,6 +9,11 @@ class MealCalculationResult {
   final int requiredBreakfast;
   final int requiredLunch;
   final int requiredDinner;
+  
+  final List<dynamic> onLeaveMembers;
+  final List<dynamic> notEatingBreakfastMembers;
+  final List<dynamic> notEatingLunchMembers;
+  final List<dynamic> notEatingDinnerMembers;
 
   MealCalculationResult({
     required this.totalMembers,
@@ -19,6 +24,10 @@ class MealCalculationResult {
     required this.requiredBreakfast,
     required this.requiredLunch,
     required this.requiredDinner,
+    required this.onLeaveMembers,
+    required this.notEatingBreakfastMembers,
+    required this.notEatingLunchMembers,
+    required this.notEatingDinnerMembers,
   });
 }
 
@@ -31,12 +40,14 @@ class MealCalculator {
     required List<dynamic> todaysPlans, // Typically List<MealPlan>
   }) {
     int totalMembers = members.length;
-    int onLeave = members.where((m) => m.currentStatus == 'Away').length;
-
-    int notEatingBreakfast = 0;
-    int notEatingLunch = 0;
-    int notEatingDinner = 0;
     
+    final onLeaveMembers = members.where((m) => m.currentStatus == 'Away').toList();
+    int onLeave = onLeaveMembers.length;
+
+    final notEatingBreakfastMembers = [];
+    final notEatingLunchMembers = [];
+    final notEatingDinnerMembers = [];
+
     int reqBreakfast = 0;
     int reqLunch = 0;
     int reqDinner = 0;
@@ -45,26 +56,39 @@ class MealCalculator {
       if (member.currentStatus == 'Present') {
         final plan = todaysPlans.where((p) => p.memberId == member.id).firstOrNull;
         
-        if (plan?.breakfast ?? true) reqBreakfast++;
-        else notEatingBreakfast++;
+        if (plan?.breakfast ?? true) {
+          reqBreakfast++;
+        } else {
+          notEatingBreakfastMembers.add(member);
+        }
 
-        if (plan?.lunch ?? true) reqLunch++;
-        else notEatingLunch++;
+        if (plan?.lunch ?? true) {
+          reqLunch++;
+        } else {
+          notEatingLunchMembers.add(member);
+        }
 
-        if (plan?.dinner ?? true) reqDinner++;
-        else notEatingDinner++;
+        if (plan?.dinner ?? true) {
+          reqDinner++;
+        } else {
+          notEatingDinnerMembers.add(member);
+        }
       }
     }
 
     return MealCalculationResult(
       totalMembers: totalMembers,
       onLeave: onLeave,
-      notEatingBreakfast: notEatingBreakfast,
-      notEatingLunch: notEatingLunch,
-      notEatingDinner: notEatingDinner,
+      notEatingBreakfast: notEatingBreakfastMembers.length,
+      notEatingLunch: notEatingLunchMembers.length,
+      notEatingDinner: notEatingDinnerMembers.length,
       requiredBreakfast: reqBreakfast,
       requiredLunch: reqLunch,
       requiredDinner: reqDinner,
+      onLeaveMembers: onLeaveMembers,
+      notEatingBreakfastMembers: notEatingBreakfastMembers,
+      notEatingLunchMembers: notEatingLunchMembers,
+      notEatingDinnerMembers: notEatingDinnerMembers,
     );
   }
 }

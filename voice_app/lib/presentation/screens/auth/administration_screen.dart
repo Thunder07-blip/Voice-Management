@@ -42,7 +42,7 @@ class _AdministrationScreenState extends ConsumerState<AdministrationScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          if (authState.hasPermission('ADD_MEMBER') || authState.hasPermission('EDIT_MEMBER'))
+          if (authState.hasPermission('manage_members'))
             _AdminCard(
               title: 'Member Management',
               icon: Icons.group,
@@ -55,7 +55,7 @@ class _AdministrationScreenState extends ConsumerState<AdministrationScreen> {
               },
             ),
           const SizedBox(height: 16),
-          if (authState.hasPermission('ROLE_MANAGEMENT'))
+          if (authState.hasPermission('manage_roles'))
             _AdminCard(
               title: 'Role Management',
               icon: Icons.shield,

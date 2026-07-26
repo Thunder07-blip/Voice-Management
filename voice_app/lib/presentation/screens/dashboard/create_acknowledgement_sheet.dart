@@ -38,15 +38,29 @@ class _CreateAcknowledgementSheetState extends ConsumerState<CreateAcknowledgeme
 
       if (authState.currentMember == null) throw Exception('Not logged in');
 
+      final acknowledgementId = const Uuid().v4();
+      final now = DateTime.now();
+
       // Add the new acknowledgement
       await db.into(db.acknowledgementsTable).insert(
         AcknowledgementsTableCompanion.insert(
-          id: const Uuid().v4(),
+          id: acknowledgementId,
           content: _contentController.text,
           authorId: authState.currentMember!.id,
           taggedMemberIds: drift.Value(_selectedMemberIds.toList()),
-          createdAt: DateTime.now(),
+          createdAt: now,
         ),
+      );
+      await ref.read(syncEngineProvider).queueOperation(
+        table: 'acknowledgements',
+        operation: 'insert',
+        data: {
+          'id': acknowledgementId,
+          'content': _contentController.text,
+          'authorId': authState.currentMember!.id,
+          'taggedMemberIds': jsonEncode(_selectedMemberIds.toList()),
+          'createdAt': now.toIso8601String(),
+        },
       );
 
       // Enforce the 3 entries rule: if there are more than 3, delete the oldest
@@ -59,6 +73,13 @@ class _CreateAcknowledgementSheetState extends ConsumerState<CreateAcknowledgeme
         await (db.delete(db.acknowledgementsTable)
               ..where((t) => t.id.isIn(toDelete)))
             .go();
+        for (final id in toDelete) {
+          await ref.read(syncEngineProvider).queueOperation(
+            table: 'acknowledgements',
+            operation: 'delete',
+            data: {'id': id},
+          );
+        }
       }
 
       if (mounted) Navigator.pop(context);

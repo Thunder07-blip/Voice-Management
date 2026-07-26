@@ -6,6 +6,7 @@ import 'core/providers/auth_provider.dart';
 import 'presentation/screens/app_shell.dart';
 import 'presentation/screens/auth/member_login_screen.dart';
 import 'data/remote/supabase_config.dart';
+import 'core/services/device_notification_service.dart';
 
 import 'core/providers/app_providers.dart';
 
@@ -19,22 +20,17 @@ void main() async {
   );
   
   final container = ProviderContainer();
-  final db = container.read(databaseProvider);
-  
-  // Ensure the database has the initial Project Manager if it's empty
-  try {
-    await db.seedInitialAdmin();
-  } catch (e) {
-    debugPrint('Failed to seed initial admin: $e');
-  }
-
-  // Start sync engine
+  // Pull the shared catalog and records before trying auto-login. The app no
+  // longer manufactures device-only demo accounts, which keeps every phone on
+  // the same Supabase source of truth.
   final syncEngine = container.read(syncEngineProvider);
-  syncEngine.startRealtimeSync();
-  syncEngine.syncNow(); // Push any pending outbox items
+  await syncEngine.startRealtimeSync();
+  await syncEngine.syncNow();
 
   final authNotifier = container.read(authProvider.notifier);
   await authNotifier.tryAutoLogin();
+
+  await DeviceNotificationService.requestPermission();
 
   runApp(UncontrolledProviderScope(
     container: container,

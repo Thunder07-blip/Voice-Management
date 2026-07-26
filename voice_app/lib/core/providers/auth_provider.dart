@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:collection/collection.dart';
 import 'package:drift/drift.dart' as drift;
@@ -49,6 +51,8 @@ class AuthState {
 class AuthNotifier extends Notifier<AuthState> {
   @override
   AuthState build() {
+    ref.listen(membersStreamProvider, (_, __) => unawaited(refreshCurrentSession()));
+    ref.listen(rolesStreamProvider, (_, __) => unawaited(refreshCurrentSession()));
     return const AuthState();
   }
 
@@ -62,8 +66,9 @@ class AuthNotifier extends Notifier<AuthState> {
     final db = ref.read(databaseProvider);
     
     // Find member by ID
+    final normalizedMemberId = memberId.trim().toUpperCase();
     final members = await db.select(db.membersTable).get();
-    final member = members.firstWhereOrNull((m) => m.memberId == memberId);
+    final member = members.firstWhereOrNull((m) => m.memberId == normalizedMemberId);
 
     if (member == null) return false;
     
@@ -100,7 +105,7 @@ class AuthNotifier extends Notifier<AuthState> {
 
     // Save to persistent storage
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('memberId', memberId);
+    await prefs.setString('memberId', normalizedMemberId);
     await prefs.setString('memberPin', pin);
 
     return true;
@@ -120,6 +125,15 @@ class AuthNotifier extends Notifier<AuthState> {
       // Ignore storage errors on init
     }
     return false;
+  }
+
+  /// Re-evaluate the current session after Realtime updates the local role,
+  /// permission, member, or PIN data. This makes permission changes from one
+  /// coordinator take effect on every open phone without requiring logout.
+  Future<void> refreshCurrentSession() async {
+    final current = state.currentMember;
+    if (current == null || current.memberId == null || current.pinHash == null) return;
+    await loginMember(current.memberId!, current.pinHash!);
   }
 
   /// Enable Administrator Mode
@@ -166,7 +180,7 @@ class AuthNotifier extends Notifier<AuthState> {
     final member = state.currentMember;
     if (member == null) return false;
     
-    if (member.pinHash != currentPin) return false;
+    if (member.pinHash != currentPin || !RegExp(r'^\d{4}$').hasMatch(newPin)) return false;
 
     final db = ref.read(databaseProvider);
     
@@ -179,8 +193,32 @@ class AuthNotifier extends Notifier<AuthState> {
     // Update PIN in DB
     await db.update(db.membersTable).replace(updatedMember);
 
+    await ref.read(syncEngineProvider).queueOperation(
+      table: 'members',
+      operation: 'update',
+      data: {
+        'id': updatedMember.id,
+        'memberId': updatedMember.memberId,
+        'pinHash': updatedMember.pinHash,
+        'name': updatedMember.name,
+        'profilePhoto': updatedMember.profilePhoto,
+        'college': updatedMember.college,
+        'year': updatedMember.year,
+        'memberType': updatedMember.memberType,
+        'currentStatus': updatedMember.currentStatus,
+        'groupId': updatedMember.groupId,
+        'roleId': updatedMember.roleId,
+        'createdAt': updatedMember.createdAt.toIso8601String(),
+        'updatedAt': updatedMember.updatedAt.toIso8601String(),
+        'deletedAt': updatedMember.deletedAt?.toIso8601String(),
+      },
+    );
+
     // Update in-memory state
     state = state.copyWith(currentMember: updatedMember);
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('memberPin', newPin);
 
     return true;
   }

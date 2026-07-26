@@ -97,18 +97,42 @@ class _LeaveRequestSheetState extends ConsumerState<LeaveRequestSheet> {
     }
 
     final db = ref.read(databaseProvider);
+    final syncEngine = ref.read(syncEngineProvider);
     
+    final leaveId = const Uuid().v4();
+    final now = DateTime.now();
+
+    final leaveData = {
+      'id': leaveId,
+      'member_id': member.id,
+      'reason': _reasonController.text.trim(),
+      'start_date': leaveDateTime.toIso8601String(),
+      'end_date': returnDateTime.toIso8601String(),
+      'status': 'pending',
+      'created_at': now.toIso8601String(),
+      'updated_at': now.toIso8601String(),
+    };
+
+    // Insert locally for immediate UI update
     await db.into(db.leavesTable).insert(
       LeavesTableCompanion.insert(
-        id: const Uuid().v4(),
+        id: leaveId,
         memberId: member.id,
         reason: drift.Value(_reasonController.text.trim()),
         startDate: leaveDateTime.toIso8601String(),
         endDate: drift.Value(returnDateTime.toIso8601String()),
         status: const drift.Value('pending'),
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
+        createdAt: now,
+        updatedAt: now,
       )
+    );
+
+    // Queue only after the local write has completed. This makes the insert
+    // safe when an online Realtime event returns immediately.
+    await syncEngine.queueOperation(
+      table: 'leaves',
+      operation: 'insert',
+      data: leaveData,
     );
 
     if (!mounted) return;

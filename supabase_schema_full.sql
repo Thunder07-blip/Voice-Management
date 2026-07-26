@@ -1,171 +1,178 @@
--- ==============================================================================
--- VOICE MANAGER - FULL SUPABASE DEPLOYMENT SCHEMA
--- Run this in your Supabase SQL Editor to set up the entire backend.
--- ==============================================================================
+-- =============================================================================
+-- Voice Manager: complete Supabase schema (new-project bootstrap)
+-- =============================================================================
 
--- 1. Create Tables
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 CREATE TABLE public.roles (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    description TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE public.permissions (
-    id TEXT PRIMARY KEY,
-    permission_key TEXT NOT NULL,
-    description TEXT
+  id TEXT PRIMARY KEY,
+  permission_key TEXT NOT NULL UNIQUE,
+  description TEXT
 );
 
 CREATE TABLE public.role_permissions (
-    role_id TEXT REFERENCES public.roles(id) ON DELETE CASCADE,
-    permission_id TEXT REFERENCES public.permissions(id) ON DELETE CASCADE,
-    PRIMARY KEY (role_id, permission_id)
-);
-
-CREATE TABLE public.members (
-    id TEXT PRIMARY KEY,
-    member_id TEXT UNIQUE NOT NULL,
-    pin_hash TEXT NOT NULL,
-    name TEXT NOT NULL,
-    member_type TEXT NOT NULL DEFAULT 'student',
-    college TEXT,
-    course TEXT,
-    contact_number TEXT,
-    role_id TEXT REFERENCES public.roles(id) ON DELETE SET NULL,
-    current_status TEXT DEFAULT 'Present',
-    photo_url TEXT,
-    join_date TIMESTAMP WITH TIME ZONE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  role_id TEXT NOT NULL REFERENCES public.roles(id) ON DELETE CASCADE,
+  permission_id TEXT NOT NULL REFERENCES public.permissions(id) ON DELETE CASCADE,
+  PRIMARY KEY (role_id, permission_id)
 );
 
 CREATE TABLE public.groups (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    description TEXT,
-    created_by TEXT REFERENCES public.members(id) ON DELETE SET NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE public.group_members (
-    group_id TEXT REFERENCES public.groups(id) ON DELETE CASCADE,
-    member_id TEXT REFERENCES public.members(id) ON DELETE CASCADE,
-    PRIMARY KEY (group_id, member_id)
+CREATE TABLE public.members (
+  id VARCHAR(5) PRIMARY KEY CHECK (id ~ '^[A-Za-z0-9]{5}$'),
+  member_id VARCHAR(5) NOT NULL UNIQUE CHECK (member_id ~ '^[A-Za-z0-9]{5}$'),
+  pin_hash TEXT NOT NULL,
+  name TEXT NOT NULL,
+  profile_photo TEXT,
+  college TEXT,
+  year TEXT,
+  member_type TEXT NOT NULL DEFAULT 'student',
+  current_status TEXT NOT NULL DEFAULT 'Present',
+  group_id TEXT REFERENCES public.groups(id) ON DELETE SET NULL,
+  role_id TEXT REFERENCES public.roles(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  deleted_at TIMESTAMPTZ
 );
 
 CREATE TABLE public.tasks (
-    id TEXT PRIMARY KEY,
-    title TEXT NOT NULL,
-    description TEXT,
-    due_date TIMESTAMP WITH TIME ZONE,
-    priority TEXT DEFAULT 'medium',
-    status TEXT DEFAULT 'pending',
-    created_by TEXT REFERENCES public.members(id) ON DELETE SET NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  description TEXT,
+  priority TEXT NOT NULL DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high')),
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'in_progress', 'completed')),
+  due_date TEXT,
+  created_by VARCHAR(5) REFERENCES public.members(id) ON DELETE SET NULL,
+  assigned_to VARCHAR(5) REFERENCES public.members(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  deleted_at TIMESTAMPTZ
 );
 
-CREATE TABLE public.task_assignments (
-    task_id TEXT REFERENCES public.tasks(id) ON DELETE CASCADE,
-    member_id TEXT REFERENCES public.members(id) ON DELETE CASCADE,
-    PRIMARY KEY (task_id, member_id)
+CREATE TABLE public.notices (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  content TEXT NOT NULL,
+  posted_by VARCHAR(5) REFERENCES public.members(id) ON DELETE SET NULL,
+  department TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE public.leaves (
-    id TEXT PRIMARY KEY,
-    member_id TEXT REFERENCES public.members(id) ON DELETE CASCADE,
-    reason TEXT,
-    start_date TEXT NOT NULL,
-    end_date TEXT,
-    status TEXT DEFAULT 'pending',
-    approved_by TEXT REFERENCES public.members(id) ON DELETE SET NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  id TEXT PRIMARY KEY,
+  member_id VARCHAR(5) NOT NULL REFERENCES public.members(id) ON DELETE CASCADE,
+  reason TEXT,
+  start_date TEXT NOT NULL,
+  end_date TEXT,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'active', 'completed')),
+  approved_by VARCHAR(5) REFERENCES public.members(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE public.meal_plans (
-    id TEXT PRIMARY KEY,
-    member_id TEXT REFERENCES public.members(id) ON DELETE CASCADE,
-    date TEXT NOT NULL,
-    breakfast BOOLEAN DEFAULT true,
-    lunch BOOLEAN DEFAULT true,
-    dinner BOOLEAN DEFAULT true,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  id TEXT PRIMARY KEY,
+  member_id VARCHAR(5) NOT NULL REFERENCES public.members(id) ON DELETE CASCADE,
+  date TEXT NOT NULL,
+  breakfast BOOLEAN NOT NULL DEFAULT TRUE,
+  lunch BOOLEAN NOT NULL DEFAULT TRUE,
+  dinner BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE public.health_records (
-    id TEXT PRIMARY KEY,
-    member_id TEXT REFERENCES public.members(id) ON DELETE CASCADE,
-    condition TEXT NOT NULL,
-    status TEXT DEFAULT 'Resting',
-    reported_by TEXT REFERENCES public.members(id) ON DELETE SET NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  id TEXT PRIMARY KEY,
+  member_id VARCHAR(5) NOT NULL REFERENCES public.members(id) ON DELETE CASCADE,
+  condition TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'Resting',
+  reported_by VARCHAR(5) REFERENCES public.members(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE public.acknowledgements (
+  id TEXT PRIMARY KEY,
+  content TEXT NOT NULL,
+  author_id VARCHAR(5) NOT NULL REFERENCES public.members(id) ON DELETE CASCADE,
+  tagged_member_ids TEXT NOT NULL DEFAULT '[]',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE public.activities (
-    id TEXT PRIMARY KEY,
-    content TEXT NOT NULL,
-    category TEXT NOT NULL,
-    related_member_id TEXT REFERENCES public.members(id) ON DELETE SET NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  content TEXT NOT NULL,
+  related_member_id VARCHAR(5) REFERENCES public.members(id) ON DELETE SET NULL,
+  category TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE public.app_versions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    version TEXT NOT NULL,
-    build_number INTEGER NOT NULL,
-    is_mandatory BOOLEAN NOT NULL DEFAULT false,
-    release_notes TEXT,
-    download_url TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'active',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  version TEXT NOT NULL,
+  build_number INTEGER NOT NULL,
+  is_mandatory BOOLEAN NOT NULL DEFAULT FALSE,
+  release_notes TEXT,
+  download_url TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- ==============================================================================
--- 2. Row Level Security (RLS) Policies
--- For internal MVP, we enable RLS but allow authenticated/public reads & writes
--- pending full Supabase Auth migration.
--- ==============================================================================
-
+-- The current application uses its own Member ID + PIN session, not Supabase
+-- Auth. These policies preserve that compatibility. Replace them with
+-- authenticated, role-aware RLS policies before opening the backend to
+-- untrusted users.
 ALTER TABLE public.roles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.permissions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.role_permissions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.groups ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.group_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.task_assignments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.leaves ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.meal_plans ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.health_records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.acknowledgements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activities ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.app_versions ENABLE ROW LEVEL SECURITY;
 
--- Allow all operations for now (Since the app currently uses PIN auth locally, 
--- Supabase sees the requests as "anon". When you migrate to Supabase Auth, you will restrict these.)
-CREATE POLICY "Allow anon everything" ON public.roles FOR ALL USING (true);
-CREATE POLICY "Allow anon everything" ON public.permissions FOR ALL USING (true);
-CREATE POLICY "Allow anon everything" ON public.role_permissions FOR ALL USING (true);
-CREATE POLICY "Allow anon everything" ON public.members FOR ALL USING (true);
-CREATE POLICY "Allow anon everything" ON public.groups FOR ALL USING (true);
-CREATE POLICY "Allow anon everything" ON public.group_members FOR ALL USING (true);
-CREATE POLICY "Allow anon everything" ON public.tasks FOR ALL USING (true);
-CREATE POLICY "Allow anon everything" ON public.task_assignments FOR ALL USING (true);
-CREATE POLICY "Allow anon everything" ON public.leaves FOR ALL USING (true);
-CREATE POLICY "Allow anon everything" ON public.meal_plans FOR ALL USING (true);
-CREATE POLICY "Allow anon everything" ON public.health_records FOR ALL USING (true);
-CREATE POLICY "Allow anon everything" ON public.activities FOR ALL USING (true);
-CREATE POLICY "Allow anon everything" ON public.app_versions FOR ALL USING (true);
+CREATE POLICY "Allow anonymous app access" ON public.roles FOR ALL USING (TRUE) WITH CHECK (TRUE);
+CREATE POLICY "Allow anonymous app access" ON public.permissions FOR ALL USING (TRUE) WITH CHECK (TRUE);
+CREATE POLICY "Allow anonymous app access" ON public.role_permissions FOR ALL USING (TRUE) WITH CHECK (TRUE);
+CREATE POLICY "Allow anonymous app access" ON public.groups FOR ALL USING (TRUE) WITH CHECK (TRUE);
+CREATE POLICY "Allow anonymous app access" ON public.members FOR ALL USING (TRUE) WITH CHECK (TRUE);
+CREATE POLICY "Allow anonymous app access" ON public.tasks FOR ALL USING (TRUE) WITH CHECK (TRUE);
+CREATE POLICY "Allow anonymous app access" ON public.notices FOR ALL USING (TRUE) WITH CHECK (TRUE);
+CREATE POLICY "Allow anonymous app access" ON public.leaves FOR ALL USING (TRUE) WITH CHECK (TRUE);
+CREATE POLICY "Allow anonymous app access" ON public.meal_plans FOR ALL USING (TRUE) WITH CHECK (TRUE);
+CREATE POLICY "Allow anonymous app access" ON public.health_records FOR ALL USING (TRUE) WITH CHECK (TRUE);
+CREATE POLICY "Allow anonymous app access" ON public.acknowledgements FOR ALL USING (TRUE) WITH CHECK (TRUE);
+CREATE POLICY "Allow anonymous app access" ON public.activities FOR ALL USING (TRUE) WITH CHECK (TRUE);
+CREATE POLICY "Allow anonymous app access" ON public.app_versions FOR ALL USING (TRUE) WITH CHECK (TRUE);
 
--- Enable Realtime for relevant tables
-alter publication supabase_realtime add table public.members;
-alter publication supabase_realtime add table public.tasks;
-alter publication supabase_realtime add table public.task_assignments;
-alter publication supabase_realtime add table public.leaves;
-alter publication supabase_realtime add table public.meal_plans;
-alter publication supabase_realtime add table public.health_records;
-alter publication supabase_realtime add table public.activities;
+DO $$
+DECLARE
+  target_table TEXT;
+BEGIN
+  FOREACH target_table IN ARRAY ARRAY[
+    'roles', 'permissions', 'role_permissions', 'groups', 'members',
+    'tasks', 'notices', 'leaves', 'meal_plans', 'health_records',
+    'acknowledgements', 'activities'
+  ] LOOP
+    EXECUTE format('ALTER PUBLICATION supabase_realtime ADD TABLE public.%I', target_table);
+  END LOOP;
+END $$;

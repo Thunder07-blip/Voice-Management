@@ -51,57 +51,13 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
     super.dispose();
   }
 
-  List<Map<String, dynamic>> get _filteredMembers {
-    final query = _searchController.text.toLowerCase();
-    return _mockMembers.where((member) {
-      // 1. Search matching
-      final matchesSearch = query.isEmpty ||
-          (member['name'] as String).toLowerCase().contains(query) ||
-          (member['details'] as String).toLowerCase().contains(query);
 
-      // 2. Filter matching
-      bool matchesFilter = true;
-      
-      if (_isWorkingOnly) {
-        if (member['type']?.toString().toLowerCase() != 'working') {
-          matchesFilter = false;
-        }
-      }
-
-      final details = (member['details'] as String).toLowerCase();
-
-      if (_selectedYears.isNotEmpty && matchesFilter) {
-        // Simplified matching for mock data
-        bool matchesYear = false;
-        for (final year in _selectedYears) {
-          if (details.contains(year.toLowerCase()) || year.contains('1st') && details.contains('fy') || year.contains('second') && details.contains('sy') || year.contains('third') && details.contains('ty')) {
-            matchesYear = true;
-            break;
-          }
-        }
-        if (!matchesYear) matchesFilter = false;
-      }
-
-      if (_selectedGroups.isNotEmpty && matchesFilter) {
-        bool matchesGroup = false;
-        for (final group in _selectedGroups) {
-          if (details.contains(group.toLowerCase())) {
-            matchesGroup = true;
-            break;
-          }
-        }
-        if (!matchesGroup) matchesFilter = false;
-      }
-
-      return matchesSearch && matchesFilter;
-    }).toList();
-  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final authState = ref.watch(authProvider);
-    final displayedMembers = _filteredMembers;
+
 
     return Scaffold(
       drawer: const AppDrawer(),
@@ -117,15 +73,30 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 12),
-            child: CircleAvatar(
-              radius: 16,
-              backgroundColor: AppTheme.primaryContainer,
-              child: Text(
-                'S',
-                style: TextStyle(
-                  color: AppTheme.onPrimaryContainer,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
+            child: InkWell(
+              onTap: () {
+                if (authState.currentMember != null) {
+                  Navigator.push(context, MaterialPageRoute(
+                    builder: (_) => MemberProfileScreen(
+                      name: authState.currentMember!.name,
+                      memberId: authState.currentMember!.id,
+                      isSelf: true,
+                    ),
+                  ));
+                }
+              },
+              child: CircleAvatar(
+                radius: 16,
+                backgroundColor: AppTheme.primaryContainer,
+                child: Text(
+                  authState.currentMember?.name.isNotEmpty == true 
+                      ? authState.currentMember!.name[0].toUpperCase() 
+                      : 'U',
+                  style: TextStyle(
+                    color: AppTheme.onPrimaryContainer,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
                 ),
               ),
             ),
@@ -239,42 +210,7 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
             ),
           ),
 
-          // Member List
-          if (displayedMembers.isEmpty)
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.group_off, size: 64, color: AppTheme.outlineVariant),
-                    const SizedBox(height: 16),
-                    Text(
-                      'No members found',
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        color: AppTheme.onSurfaceVariant,
-                      ),
-                    ),
-                    if (authState.hasPermission('manage_members') || ['Project Manager', 'Overall Coordinator'].contains(authState.currentRole?.name)) ...[
-                      const SizedBox(height: 24),
-                      FilledButton.icon(
-                        onPressed: () {
-                          showModalBottomSheet(
-                            context: context,
-                            isScrollControlled: true,
-                            useSafeArea: true,
-                            backgroundColor: AppTheme.surfaceContainerLowest,
-                            builder: (_) => const MemberFormSheet(member: null),
-                          );
-                        },
-                        icon: const Icon(Icons.add),
-                        label: const Text('Add Member'),
-                      ),
-                    ]
-                  ],
-                ),
-              ),
-            ),
+
           Consumer(
             builder: (context, ref, child) {
               final membersAsync = ref.watch(membersStreamProvider);
@@ -315,11 +251,12 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
                           final initials = member.name.trim().isNotEmpty
                               ? member.name.trim().split(' ').map((e) => e[0]).take(2).join().toUpperCase()
                               : 'M';
-                          final details = '${member.memberType.toUpperCase()} ${member.college != null ? "• ${member.college}" : ""}';
+                          final details = member.college != null ? member.college! : 'No Institution Data';
                           
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 16),
                             child: _MemberCard(
+                              memberId: member.id,
                               name: member.name,
                               type: member.memberType,
                               details: details,
@@ -451,6 +388,7 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
 }
 
 class _MemberCard extends StatelessWidget {
+  final String? memberId;
   final String name;
   final String type;
   final String details;
@@ -458,6 +396,7 @@ class _MemberCard extends StatelessWidget {
   final bool isPendingSync;
 
   const _MemberCard({
+    this.memberId,
     required this.name,
     required this.type,
     required this.details,
@@ -473,7 +412,7 @@ class _MemberCard extends StatelessWidget {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => MemberProfileScreen(name: name)),
+          MaterialPageRoute(builder: (context) => MemberProfileScreen(memberId: memberId, name: name)),
         );
       },
       borderRadius: BorderRadius.circular(16),
@@ -570,31 +509,4 @@ class _MemberCard extends StatelessWidget {
   }
 }
 
-// Mock data matching the Stitch design
-const _mockMembers = [
-  {
-    'name': 'Sajal Patil',
-    'type': 'Student',
-    'details': 'SY • Group A • Lead',
-    'initials': 'SP'
-  },
-  {
-    'name': 'Ananya Sharma',
-    'type': 'Working',
-    'details': 'Software Eng • Group C',
-    'initials': 'AS',
-    'isPendingSync': true,
-  },
-  {
-    'name': 'Rahul Verma',
-    'type': 'Student',
-    'details': 'TY • Group B • Member',
-    'initials': 'RV'
-  },
-  {
-    'name': 'Priya Singh',
-    'type': 'Working',
-    'details': 'Designer • Group A • Mentor',
-    'initials': 'PS'
-  },
-];
+

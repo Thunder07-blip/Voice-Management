@@ -27,6 +27,7 @@ class LeaveCard extends ConsumerWidget {
 
     final bool isPending = leave.status == 'pending';
     final bool isApproved = leave.status == 'approved';
+    final bool isOverdue = isPending && DateTime.tryParse(leave.startDate)?.isBefore(DateTime.now()) == true;
 
     // Helper to format the dates elegantly
     String formatLeaveDate(String isoString) {
@@ -112,6 +113,25 @@ class LeaveCard extends ConsumerWidget {
               ),
             ],
           ),
+          
+          if (isCoordinator && isOverdue) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppTheme.error.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppTheme.error.withValues(alpha: 0.3)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded, size: 16, color: AppTheme.error),
+                  SizedBox(width: 8),
+                  Text('Approval Overdue', style: TextStyle(color: AppTheme.error, fontWeight: FontWeight.bold, fontSize: 12)),
+                ],
+              ),
+            ),
+          ],
           
           if (isCoordinator && isPending) ...[
             const Padding(

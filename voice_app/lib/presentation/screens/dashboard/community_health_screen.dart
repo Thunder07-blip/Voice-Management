@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import 'package:drift/drift.dart' as drift;
 import '../../../core/theme/app_theme.dart';
 import '../../../core/providers/app_providers.dart';
+import '../../../core/providers/auth_provider.dart';
 import '../../../data/local/database.dart';
 
 class CommunityHealthScreen extends ConsumerWidget {
@@ -189,6 +190,19 @@ class _HealthCard extends ConsumerWidget {
       updatedAt: DateTime.now(),
     );
     await db.update(db.healthRecordsTable).replace(updated);
+    await ref.read(syncEngineProvider).queueOperation(
+      table: 'health_records',
+      operation: 'update',
+      data: {
+        'id': updated.id,
+        'memberId': updated.memberId,
+        'condition': updated.condition,
+        'status': updated.status,
+        'reportedBy': updated.reportedBy,
+        'createdAt': updated.createdAt.toIso8601String(),
+        'updatedAt': updated.updatedAt.toIso8601String(),
+      },
+    );
   }
 }
 
@@ -254,14 +268,31 @@ class _ReportHealthIssueSheetState extends ConsumerState<_ReportHealthIssueSheet
     if (_selectedMemberId == null || _conditionController.text.trim().isEmpty) return;
 
     final db = ref.read(databaseProvider);
+    final now = DateTime.now();
+    final recordId = const Uuid().v4();
+    final reportedBy = ref.read(authProvider).currentMember?.id;
     await db.into(db.healthRecordsTable).insert(
       HealthRecordsTableCompanion.insert(
-        id: const Uuid().v4(),
+        id: recordId,
         memberId: _selectedMemberId!,
         condition: _conditionController.text.trim(),
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
+        reportedBy: drift.Value(reportedBy),
+        createdAt: now,
+        updatedAt: now,
       ),
+    );
+    await ref.read(syncEngineProvider).queueOperation(
+      table: 'health_records',
+      operation: 'insert',
+      data: {
+        'id': recordId,
+        'memberId': _selectedMemberId,
+        'condition': _conditionController.text.trim(),
+        'status': 'Resting',
+        'reportedBy': reportedBy,
+        'createdAt': now.toIso8601String(),
+        'updatedAt': now.toIso8601String(),
+      },
     );
 
     if (mounted) Navigator.pop(context);

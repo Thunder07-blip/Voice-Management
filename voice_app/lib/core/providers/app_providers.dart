@@ -74,6 +74,22 @@ final healthRecordsStreamProvider = StreamProvider<List<HealthRecord>>((ref) {
   return db.select(db.healthRecordsTable).watch();
 });
 
+/// Alerts stored locally from Supabase Realtime events. Read state belongs to
+/// this phone and is deliberately not shared with other members.
+final appNotificationsStreamProvider = StreamProvider<List<AppNotification>>((ref) {
+  final db = ref.watch(databaseProvider);
+  return (db.select(db.notificationsTable)
+        ..orderBy([(item) => drift.OrderingTerm.desc(item.createdAt)]))
+      .watch();
+});
+
+final unreadNotificationsCountProvider = Provider<int>((ref) {
+  return ref.watch(appNotificationsStreamProvider).value
+          ?.where((item) => item.readAt == null)
+          .length ??
+      0;
+});
+
 // Provides a real-time stream of all roles from the local database
 final rolesStreamProvider = StreamProvider<List<Role>>((ref) {
   final db = ref.watch(databaseProvider);

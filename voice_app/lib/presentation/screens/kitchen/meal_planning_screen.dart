@@ -24,10 +24,8 @@ class _MealPlanningScreenState extends ConsumerState<MealPlanningScreen> {
     final theme = Theme.of(context);
     final authState = ref.watch(authProvider);
     
-    // Check if user is Kitchen Incharge, Project Manager, or OC
-    final hasKitchenView = authState.hasPermission('manage_kitchen') ||
-        ['Project Manager', 'Overall Coordinator', 'Kitchen Incharge']
-            .contains(authState.currentRole?.name);
+    final hasKitchenView = authState.hasPermission('manage_meals') ||
+        authState.hasPermission('view_meals');
 
     return Scaffold(
       backgroundColor: AppTheme.surface,
@@ -113,48 +111,189 @@ class _MealPlanningScreenState extends ConsumerState<MealPlanningScreen> {
   }
 }
 
-class _MemberView extends ConsumerWidget {
+// ---------------------------------------------------------------------------
+// Member View – local-state-first editing with atomic Update
+// ---------------------------------------------------------------------------
+
+class _MemberView extends ConsumerStatefulWidget {
   final DateTime date;
   
   const _MemberView({required this.date});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_MemberView> createState() => _MemberViewState();
+}
+
+class _MemberViewState extends ConsumerState<_MemberView> {
+  // Local draft state – null means "not yet initialised from DB"
+  bool? _draftBreakfast;
+  bool? _draftLunch;
+  bool? _draftDinner;
+
+  // Snapshot of the persisted values so we can detect dirty state
+  bool _savedBreakfast = true;
+  bool _savedLunch = true;
+  bool _savedDinner = true;
+
+  bool _isSaving = false;
+
+  // Track which date + plan we last synced from so we reset draft on date change
+  String? _lastSyncedPlanId;
+  String? _lastSyncedDateStr;
+
+  bool get _hasUnsavedChanges =>
+      _draftBreakfast != null &&
+      (_draftBreakfast != _savedBreakfast ||
+       _draftLunch != _savedLunch ||
+       _draftDinner != _savedDinner);
+
+  void _syncFromPlan(MealPlan? plan, String dateStr) {
+    final planId = plan?.id;
+    if (_lastSyncedDateStr == dateStr && _lastSyncedPlanId == planId) return;
+
+    _savedBreakfast = plan?.breakfast ?? true;
+    _savedLunch = plan?.lunch ?? true;
+    _savedDinner = plan?.dinner ?? true;
+
+    _draftBreakfast = _savedBreakfast;
+    _draftLunch = _savedLunch;
+    _draftDinner = _savedDinner;
+
+    _lastSyncedPlanId = planId;
+    _lastSyncedDateStr = dateStr;
+  }
+
+  Future<void> _saveChanges(WidgetRef ref, String dateStr, String memberId, MealPlan? existingPlan) async {
+    if (!_hasUnsavedChanges) return;
+    setState(() => _isSaving = true);
+
+    try {
+      final db = ref.read(databaseProvider);
+      final syncEngine = ref.read(syncEngineProvider);
+
+      if (existingPlan != null) {
+        final updated = existingPlan.copyWith(
+          breakfast: _draftBreakfast!,
+          lunch: _draftLunch!,
+          dinner: _draftDinner!,
+          updatedAt: DateTime.now(),
+        );
+        await db.update(db.mealPlansTable).replace(updated);
+        await syncEngine.queueOperation(
+          table: 'meal_plans',
+          operation: 'update',
+          data: {
+            'id': updated.id,
+            'memberId': updated.memberId,
+            'date': updated.date,
+            'breakfast': updated.breakfast,
+            'lunch': updated.lunch,
+            'dinner': updated.dinner,
+            'createdAt': updated.createdAt.toIso8601String(),
+            'updatedAt': updated.updatedAt.toIso8601String(),
+          },
+        );
+      } else {
+        final mealPlanId = const Uuid().v4();
+        final now = DateTime.now();
+        await db.into(db.mealPlansTable).insert(
+          MealPlansTableCompanion.insert(
+            id: mealPlanId,
+            memberId: memberId,
+            date: dateStr,
+            breakfast: drift.Value(_draftBreakfast!),
+            lunch: drift.Value(_draftLunch!),
+            dinner: drift.Value(_draftDinner!),
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+        await syncEngine.queueOperation(
+          table: 'meal_plans',
+          operation: 'insert',
+          data: {
+            'id': mealPlanId,
+            'memberId': memberId,
+            'date': dateStr,
+            'breakfast': _draftBreakfast!,
+            'lunch': _draftLunch!,
+            'dinner': _draftDinner!,
+            'createdAt': now.toIso8601String(),
+            'updatedAt': now.toIso8601String(),
+          },
+        );
+      }
+
+      // After successful save, update saved snapshot so button disables
+      _savedBreakfast = _draftBreakfast!;
+      _savedLunch = _draftLunch!;
+      _savedDinner = _draftDinner!;
+      _lastSyncedPlanId = null; // force re-sync on next build
+      _lastSyncedDateStr = null;
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Meal preferences updated successfully'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppTheme.primary,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update: $e'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
     final mealPlansAsync = ref.watch(mealPlansStreamProvider);
-    
+    final leavesAsync = ref.watch(leavesStreamProvider);
+
     if (authState.currentMember == null) {
       return const Center(child: Text('Not logged in'));
     }
 
-    final dateStr = DateFormat('yyyy-MM-dd').format(date);
-    
-    final leavesAsync = ref.watch(leavesStreamProvider);
-    
+    final dateStr = DateFormat('yyyy-MM-dd').format(widget.date);
+
     return mealPlansAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (err, _) => Center(child: Text('Error: $err')),
       data: (plans) {
         final leaves = leavesAsync.value ?? [];
-        // Find existing plan or use defaults
-        final myPlan = plans.where(
-          (p) => p.memberId == authState.currentMember!.id && p.date == dateStr
-        ).firstOrNull;
+        final myPlan = plans
+            .where((p) => p.memberId == authState.currentMember!.id && p.date == dateStr)
+            .firstOrNull;
 
-        // Check if date is under an approved or active leave
+        // Sync draft from DB only when the date or plan changes
+        _syncFromPlan(myPlan, dateStr);
+
+        // Check if on leave
         bool isOnLeave = false;
         for (final leave in leaves) {
-          if (leave.memberId == authState.currentMember!.id && (leave.status == 'approved' || leave.status == 'active')) {
+          if (leave.memberId == authState.currentMember!.id &&
+              (leave.status == 'approved' || leave.status == 'active')) {
             final start = DateTime.parse(leave.startDate);
-            // End date could be null, if so assume it's ongoing or at least today
-            final end = leave.endDate != null ? DateTime.parse(leave.endDate!) : start.add(const Duration(days: 365));
-            
-            // Normalize to day
-            final checkDay = DateTime(date.year, date.month, date.day);
+            final end = leave.endDate != null
+                ? DateTime.parse(leave.endDate!)
+                : start.add(const Duration(days: 365));
+
+            final checkDay = DateTime(widget.date.year, widget.date.month, widget.date.day);
             final startDay = DateTime(start.year, start.month, start.day);
             final endDay = DateTime(end.year, end.month, end.day);
 
-            if ((checkDay.isAfter(startDay) || checkDay.isAtSameMomentAs(startDay)) && 
+            if ((checkDay.isAfter(startDay) || checkDay.isAtSameMomentAs(startDay)) &&
                 (checkDay.isBefore(endDay) || checkDay.isAtSameMomentAs(endDay))) {
               isOnLeave = true;
               break;
@@ -162,99 +301,124 @@ class _MemberView extends ConsumerWidget {
           }
         }
 
-        final breakfast = myPlan?.breakfast ?? true;
-        final lunch = myPlan?.lunch ?? true;
-        final dinner = myPlan?.dinner ?? true;
-
-        return ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            Text(
-              'My Meals',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            if (isOnLeave) ...[
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppTheme.tertiaryContainer,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.flight, color: AppTheme.onTertiaryContainer),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'You are on leave for this date. Meals are automatically marked as Not Eating.',
-                        style: TextStyle(color: AppTheme.onTertiaryContainer),
-                      ),
-                    ),
+        return RefreshIndicator(
+          onRefresh: () async {
+            if (_hasUnsavedChanges) {
+              final shouldDiscard = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Unsaved Changes'),
+                  content: const Text(
+                    'You have unsaved meal changes. Refreshing will discard them. Continue?',
+                  ),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                    FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Discard & Refresh')),
                   ],
                 ),
+              );
+              if (shouldDiscard != true) return;
+              // Reset draft tracking so _syncFromPlan re-applies from DB
+              _lastSyncedPlanId = null;
+              _lastSyncedDateStr = null;
+            }
+            await ref.read(syncEngineProvider).pullRemoteChanges();
+          },
+          child: ListView(
+            padding: const EdgeInsets.all(20),
+            children: [
+              Text(
+                'My Meals',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
+              if (isOnLeave) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.tertiaryContainer,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.flight, color: AppTheme.onTertiaryContainer),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'You are on leave for this date. Meals are automatically marked as Not Eating.',
+                          style: TextStyle(color: AppTheme.onTertiaryContainer),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+              _MealSelectionCard(
+                title: 'Breakfast',
+                isEating: _draftBreakfast ?? true,
+                isDisabled: isOnLeave,
+                onChanged: (val) => setState(() => _draftBreakfast = val),
+              ),
+              const SizedBox(height: 16),
+              _MealSelectionCard(
+                title: 'Lunch',
+                isEating: _draftLunch ?? true,
+                isDisabled: isOnLeave,
+                onChanged: (val) => setState(() => _draftLunch = val),
+              ),
+              const SizedBox(height: 16),
+              _MealSelectionCard(
+                title: 'Dinner',
+                isEating: _draftDinner ?? true,
+                isDisabled: isOnLeave,
+                onChanged: (val) => setState(() => _draftDinner = val),
+              ),
+              const SizedBox(height: 24),
+              // ── Update Button ──
+              FilledButton.icon(
+                onPressed: (_hasUnsavedChanges && !_isSaving && !isOnLeave)
+                    ? () => _saveChanges(ref, dateStr, authState.currentMember!.id, myPlan)
+                    : null,
+                icon: _isSaving
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.check_circle_outline),
+                label: Text(_isSaving ? 'Updating…' : 'Update'),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 52),
+                  backgroundColor: AppTheme.primary,
+                  disabledBackgroundColor: AppTheme.surfaceContainerLowest,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
+              if (_hasUnsavedChanges) ...[
+                const SizedBox(height: 8),
+                Center(
+                  child: Text(
+                    'You have unsaved changes',
+                    style: TextStyle(
+                      color: AppTheme.tertiary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
             ],
-            _MealSelectionCard(
-              title: 'Breakfast',
-              isEating: breakfast,
-              isDisabled: isOnLeave,
-              onChanged: (val) => _updateMeal(ref, dateStr, authState.currentMember!.id, myPlan, breakfast: val),
-            ),
-            const SizedBox(height: 16),
-            _MealSelectionCard(
-              title: 'Lunch',
-              isEating: lunch,
-              isDisabled: isOnLeave,
-              onChanged: (val) => _updateMeal(ref, dateStr, authState.currentMember!.id, myPlan, lunch: val),
-            ),
-            const SizedBox(height: 16),
-            _MealSelectionCard(
-              title: 'Dinner',
-              isEating: dinner,
-              isDisabled: isOnLeave,
-              onChanged: (val) => _updateMeal(ref, dateStr, authState.currentMember!.id, myPlan, dinner: val),
-            ),
-          ],
+          ),
         );
       },
     );
   }
-
-  void _updateMeal(
-    WidgetRef ref, 
-    String dateStr, 
-    String memberId,
-    MealPlan? existingPlan,
-    {bool? breakfast, bool? lunch, bool? dinner}
-  ) async {
-    final db = ref.read(databaseProvider);
-    
-    if (existingPlan != null) {
-      final updated = existingPlan.copyWith(
-        breakfast: breakfast ?? existingPlan.breakfast,
-        lunch: lunch ?? existingPlan.lunch,
-        dinner: dinner ?? existingPlan.dinner,
-        updatedAt: DateTime.now(),
-      );
-      await db.update(db.mealPlansTable).replace(updated);
-    } else {
-      await db.into(db.mealPlansTable).insert(
-        MealPlansTableCompanion.insert(
-          id: const Uuid().v4(),
-          memberId: memberId,
-          date: dateStr,
-          breakfast: drift.Value(breakfast ?? true),
-          lunch: drift.Value(lunch ?? true),
-          dinner: drift.Value(dinner ?? true),
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        ),
-      );
-    }
-  }
 }
+
+// ---------------------------------------------------------------------------
+// Meal Selection Card (unchanged – purely presentational)
+// ---------------------------------------------------------------------------
 
 class _MealSelectionCard extends StatelessWidget {
   final String title;
@@ -312,6 +476,10 @@ class _MealSelectionCard extends StatelessWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Kitchen View – coordinator / kitchen staff analytics with pull-to-refresh
+// ---------------------------------------------------------------------------
+
 class _KitchenView extends ConsumerWidget {
   final DateTime date;
 
@@ -338,40 +506,43 @@ class _KitchenView extends ConsumerWidget {
               todaysPlans: todaysPlans,
             );
 
-            return ListView(
-              padding: const EdgeInsets.all(20),
-              children: [
-                Text(
-                  'Kitchen Analytics',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 16),
-                _KitchenMealCard(
-                  title: 'Breakfast',
-                  totalMembers: result.totalMembers,
-                  onLeave: result.onLeave,
-                  notEating: result.notEatingBreakfast,
-                  mealsRequired: result.requiredBreakfast,
-                ),
-                const SizedBox(height: 16),
-                _KitchenMealCard(
-                  title: 'Lunch',
-                  totalMembers: result.totalMembers,
-                  onLeave: result.onLeave,
-                  notEating: result.notEatingLunch,
-                  mealsRequired: result.requiredLunch,
-                ),
-                const SizedBox(height: 16),
-                _KitchenMealCard(
-                  title: 'Dinner',
-                  totalMembers: result.totalMembers,
-                  onLeave: result.onLeave,
-                  notEating: result.notEatingDinner,
-                  mealsRequired: result.requiredDinner,
-                ),
-              ],
+            return RefreshIndicator(
+              onRefresh: () => ref.read(syncEngineProvider).pullRemoteChanges(),
+              child: ListView(
+                padding: const EdgeInsets.all(20),
+                children: [
+                  Text(
+                    'Kitchen Analytics',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+                  _KitchenMealCard(
+                    title: 'Breakfast',
+                    totalMembers: result.totalMembers,
+                    onLeaveMembers: result.onLeaveMembers,
+                    notEatingMembers: result.notEatingBreakfastMembers,
+                    mealsRequired: result.requiredBreakfast,
+                  ),
+                  const SizedBox(height: 16),
+                  _KitchenMealCard(
+                    title: 'Lunch',
+                    totalMembers: result.totalMembers,
+                    onLeaveMembers: result.onLeaveMembers,
+                    notEatingMembers: result.notEatingLunchMembers,
+                    mealsRequired: result.requiredLunch,
+                  ),
+                  const SizedBox(height: 16),
+                  _KitchenMealCard(
+                    title: 'Dinner',
+                    totalMembers: result.totalMembers,
+                    onLeaveMembers: result.onLeaveMembers,
+                    notEatingMembers: result.notEatingDinnerMembers,
+                    mealsRequired: result.requiredDinner,
+                  ),
+                ],
+              ),
             );
-          }
+          },
         );
       },
     );
@@ -381,48 +552,112 @@ class _KitchenView extends ConsumerWidget {
 class _KitchenMealCard extends StatelessWidget {
   final String title;
   final int totalMembers;
-  final int onLeave;
-  final int notEating;
+  final List<dynamic> onLeaveMembers;
+  final List<dynamic> notEatingMembers;
   final int mealsRequired;
 
   const _KitchenMealCard({
     required this.title,
     required this.totalMembers,
-    required this.onLeave,
-    required this.notEating,
+    required this.onLeaveMembers,
+    required this.notEatingMembers,
     required this.mealsRequired,
   });
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.outlineVariant),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  void _showDetails(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: AppTheme.surfaceContainerLowest,
+      builder: (ctx) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              Text('Required: $mealsRequired', 
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primary)
+              Text('$title Details', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              Expanded(
+                child: ListView(
+                  shrinkWrap: true,
+                  children: [
+                    if (onLeaveMembers.isNotEmpty) ...[
+                      const Text('On Leave', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.onSurfaceVariant)),
+                      const SizedBox(height: 8),
+                      ...onLeaveMembers.map((m) => ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.flight, color: AppTheme.primary, size: 20),
+                        title: Text(m.name ?? 'Unknown'),
+                      )),
+                      const SizedBox(height: 16),
+                      const Divider(),
+                      const SizedBox(height: 16),
+                    ],
+                    if (notEatingMembers.isNotEmpty) ...[
+                      const Text('Not Eating', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.onSurfaceVariant)),
+                      const SizedBox(height: 8),
+                      ...notEatingMembers.map((m) => ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.restaurant_menu, color: Colors.red, size: 20),
+                        title: Text(m.name ?? 'Unknown'),
+                      )),
+                    ],
+                    if (onLeaveMembers.isEmpty && notEatingMembers.isEmpty)
+                      const Center(child: Padding(
+                        padding: EdgeInsets.all(32.0),
+                        child: Text('Everyone is eating!'),
+                      )),
+                  ],
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          const Divider(),
-          const SizedBox(height: 8),
-          _StatRow(label: 'Total Members', value: totalMembers),
-          _StatRow(label: 'On Leave', value: onLeave),
-          _StatRow(label: 'Not Eating', value: notEating, isRed: true),
-          const Divider(),
-          _StatRow(label: 'Meals Required', value: mealsRequired, isBold: true),
-        ],
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppTheme.surfaceContainerLowest,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: AppTheme.outlineVariant),
+      ),
+      child: InkWell(
+        onTap: () => _showDetails(context),
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text('Required: $mealsRequired', 
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primary)
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              const Divider(),
+              const SizedBox(height: 8),
+              _StatRow(label: 'Total Members', value: totalMembers),
+              _StatRow(label: 'On Leave', value: onLeaveMembers.length),
+              _StatRow(label: 'Not Eating', value: notEatingMembers.length, isRed: true),
+              const Divider(),
+              _StatRow(label: 'Meals Required', value: mealsRequired, isBold: true),
+            ],
+          ),
+        ),
       ),
     );
   }

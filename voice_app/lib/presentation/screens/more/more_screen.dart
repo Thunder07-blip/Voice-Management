@@ -30,7 +30,7 @@ class MoreScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          if (['Project Manager', 'Overall Coordinator', 'Assistant Overall Coordinator'].contains(authState.currentRole?.name))
+          if (authState.hasPermission('manage_members') || authState.hasPermission('manage_roles'))
             ListTile(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),

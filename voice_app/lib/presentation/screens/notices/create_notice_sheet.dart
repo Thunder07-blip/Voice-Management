@@ -8,7 +8,8 @@ import '../../../core/providers/auth_provider.dart';
 import '../../../data/local/database.dart';
 
 class CreateNoticeSheet extends ConsumerStatefulWidget {
-  const CreateNoticeSheet({super.key});
+  final Notice? notice;
+  const CreateNoticeSheet({super.key, this.notice});
 
   @override
   ConsumerState<CreateNoticeSheet> createState() => _CreateNoticeSheetState();
@@ -20,6 +21,16 @@ class _CreateNoticeSheetState extends ConsumerState<CreateNoticeSheet> {
   String? _selectedDepartment;
   
   final _departments = ['General', 'Kitchen', 'Maintenance', 'Events'];
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.notice != null) {
+      _titleController.text = widget.notice!.title;
+      _contentController.text = widget.notice!.content;
+      _selectedDepartment = widget.notice!.department;
+    }
+  }
 
   @override
   void dispose() {
@@ -38,33 +49,36 @@ class _CreateNoticeSheetState extends ConsumerState<CreateNoticeSheet> {
     final syncEngine = ref.read(syncEngineProvider);
     final currentMember = ref.read(authProvider).currentMember;
 
-    final noticeId = const Uuid().v4();
+    final noticeId = widget.notice?.id ?? const Uuid().v4();
+    final isNew = widget.notice == null;
     final now = DateTime.now();
 
     final data = {
       'id': noticeId,
       'title': title,
       'content': content,
-      'postedBy': currentMember?.id,
+      'postedBy': isNew ? currentMember?.id : widget.notice!.postedBy,
       'department': _selectedDepartment,
+      if (isNew) 'createdAt': now.toIso8601String(),
+      'updatedAt': now.toIso8601String(),
     };
 
-    await syncEngine.queueOperation(
-      table: 'notices',
-      operation: 'insert',
-      data: data,
-    );
-
-    await db.into(db.noticesTable).insert(
+    await db.into(db.noticesTable).insertOnConflictUpdate(
       NoticesTableCompanion.insert(
         id: noticeId,
         title: title,
         content: content,
-        postedBy: drift.Value(currentMember?.id),
+        postedBy: drift.Value(isNew ? currentMember?.id : widget.notice!.postedBy),
         department: drift.Value(_selectedDepartment),
-        createdAt: now,
+        createdAt: isNew ? now : widget.notice!.createdAt,
         updatedAt: now,
       ),
+    );
+
+    await syncEngine.queueOperation(
+      table: 'notices',
+      operation: isNew ? 'insert' : 'update',
+      data: data,
     );
 
     if (mounted) Navigator.pop(context);
@@ -87,7 +101,7 @@ class _CreateNoticeSheetState extends ConsumerState<CreateNoticeSheet> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Post Notice',
+                widget.notice == null ? 'Post Notice' : 'Edit Notice',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       color: AppTheme.onSurface,
                       fontWeight: FontWeight.w600,
@@ -157,9 +171,9 @@ class _CreateNoticeSheetState extends ConsumerState<CreateNoticeSheet> {
                 ),
               ),
               onPressed: _saveNotice,
-              child: const Text(
-                'Post Notice',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              child: Text(
+                widget.notice == null ? 'Post Notice' : 'Update Notice',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
           ),

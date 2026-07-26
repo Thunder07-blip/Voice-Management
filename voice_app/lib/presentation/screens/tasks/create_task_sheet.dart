@@ -4,10 +4,18 @@ import 'package:uuid/uuid.dart';
 import 'package:drift/drift.dart' as drift;
 import '../../../core/theme/app_theme.dart';
 import '../../../core/providers/app_providers.dart';
+import '../../../core/providers/auth_provider.dart';
 import '../../../data/local/database.dart'; // For TasksTableCompanion
 
 class CreateTaskSheet extends ConsumerStatefulWidget {
-  const CreateTaskSheet({super.key});
+  final String? preSelectedAssigneeId;
+  final String? preSelectedAssigneeName;
+
+  const CreateTaskSheet({
+    super.key,
+    this.preSelectedAssigneeId,
+    this.preSelectedAssigneeName,
+  });
 
   @override
   ConsumerState<CreateTaskSheet> createState() => _CreateTaskSheetState();
@@ -21,6 +29,12 @@ class _CreateTaskSheetState extends ConsumerState<CreateTaskSheet> {
   String? _selectedAssigneeId;
 
   final _priorities = ['Low', 'Medium', 'High'];
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedAssigneeId = widget.preSelectedAssigneeId;
+  }
 
   @override
   void dispose() {
@@ -50,30 +64,25 @@ class _CreateTaskSheetState extends ConsumerState<CreateTaskSheet> {
     final syncEngine = ref.read(syncEngineProvider);
 
     final taskId = const Uuid().v4();
-    final dueDateStr = _selectedDate != null 
-        ? '${_selectedDate!.month}/${_selectedDate!.day}/${_selectedDate!.year}' 
-        : 'No Due Date';
+    final now = DateTime.now();
+    final dueDateStr = _selectedDate?.toIso8601String();
 
     // 1. Create the data payload for both Drift and Outbox
     final taskData = {
       'id': taskId,
       'title': _titleController.text.trim(),
       'description': _descriptionController.text.trim(),
-      'priority': _selectedPriority,
-      'status': 'Pending',
+      'priority': _selectedPriority.toLowerCase(),
+      'status': 'pending',
       'dueDate': dueDateStr,
       'assignedTo': _selectedAssigneeId,
-      'createdAt': DateTime.now().toIso8601String(),
+      'createdBy': ref.read(authProvider).currentMember?.id,
+      'createdAt': now.toIso8601String(),
+      'updatedAt': now.toIso8601String(),
     };
 
-    // 2. Queue the operation in the SyncEngine outbox (offline first sync)
-    await syncEngine.queueOperation(
-      table: 'tasks',
-      operation: 'insert',
-      data: taskData,
-    );
-
-    // 3. Immediately insert into the local database so it shows up on screen
+    // 2. Write locally before adding it to the outbox, avoiding an online
+    // Realtime response racing the local insert.
     await db.into(db.tasksTable).insert(
       TasksTableCompanion.insert(
         id: taskId,
@@ -81,11 +90,18 @@ class _CreateTaskSheetState extends ConsumerState<CreateTaskSheet> {
         description: drift.Value(taskData['description'] as String),
         priority: drift.Value(taskData['priority'] as String),
         status: drift.Value(taskData['status'] as String),
-        dueDate: drift.Value(taskData['dueDate'] as String),
+        dueDate: drift.Value(taskData['dueDate'] as String?),
+        createdBy: drift.Value(taskData['createdBy'] as String?),
         assignedTo: drift.Value(taskData['assignedTo'] as String?),
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
+        createdAt: now,
+        updatedAt: now,
       ),
+    );
+
+    await syncEngine.queueOperation(
+      table: 'tasks',
+      operation: 'insert',
+      data: taskData,
     );
 
     if (mounted) {
@@ -162,6 +178,7 @@ class _CreateTaskSheetState extends ConsumerState<CreateTaskSheet> {
 
           // Assignee Autocomplete Search
           Autocomplete<Member>(
+            initialValue: TextEditingValue(text: widget.preSelectedAssigneeName ?? ''),
             displayStringForOption: (Member option) => option.name,
             optionsBuilder: (TextEditingValue textEditingValue) {
               if (textEditingValue.text.isEmpty) {

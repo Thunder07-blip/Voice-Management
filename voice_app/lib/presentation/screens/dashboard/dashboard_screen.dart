@@ -11,7 +11,6 @@ import '../auth/members_management_screen.dart';
 import '../leave/leave_screen.dart';
 import '../notices/create_notice_sheet.dart';
 import '../incharges/incharges_screen.dart';
-import '../../../core/services/supabase_seed_service.dart';
 import '../app_drawer.dart';
 import 'community_health_screen.dart';
 import '../kitchen/meal_planning_screen.dart';
@@ -19,17 +18,24 @@ import 'create_acknowledgement_sheet.dart';
 import 'package:intl/intl.dart';
 import 'widgets/status_banner.dart';
 import 'widgets/recent_activities_feed.dart';
+import '../notifications/notifications_screen.dart';
+import '../../../core/services/leave_sync_service.dart';
+
+final leaveActivationProvider = FutureProvider.autoDispose((ref) async {
+  await ref.read(leaveSyncServiceProvider).checkAndActivateUpcomingLeaves();
+});
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Seed Supabase with the 10 members and roles
-    SupabaseSeedManager.postSeedData();
-
     final theme = Theme.of(context);
     final authState = ref.watch(authProvider);
+    final unreadNotifications = ref.watch(unreadNotificationsCountProvider);
+
+    // Auto-activate leaves whose start date has passed
+    ref.watch(leaveActivationProvider);
 
     // Watch data streams
     final membersAsync = ref.watch(membersStreamProvider);
@@ -56,10 +62,9 @@ class DashboardScreen extends ConsumerWidget {
     // Dummy value for sick for now, as it requires a Community Health feature
     const sickCount = 2; 
 
-    final hasAdminPerms = authState.hasPermission('manage_members') || 
-                          authState.currentRole?.name == 'Project Manager' || 
-                          authState.currentRole?.name == 'Overall Coordinator' || 
-                          authState.currentRole?.name == 'Assistant Overall Coordinator';
+    final canAddMember = authState.hasPermission('manage_members');
+    final canCreateTask = authState.hasPermission('manage_tasks');
+    final canPostNotice = authState.hasPermission('manage_notices');
 
     return Scaffold(
       backgroundColor: AppTheme.surface,
@@ -74,6 +79,18 @@ class DashboardScreen extends ConsumerWidget {
         ),
         centerTitle: true,
         actions: [
+          IconButton(
+            tooltip: 'Notifications',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+            ),
+            icon: Badge(
+              isLabelVisible: unreadNotifications > 0,
+              label: Text('$unreadNotifications'),
+              child: const Icon(Icons.notifications_outlined),
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: InkWell(
@@ -181,7 +198,7 @@ class DashboardScreen extends ConsumerWidget {
             const SizedBox(height: 32),
 
             // Quick Actions
-            if (hasAdminPerms) ...[
+            if (canAddMember || canCreateTask || canPostNotice) ...[
               Text(
                 'Quick Actions',
                 style: theme.textTheme.titleLarge,
@@ -189,53 +206,56 @@ class DashboardScreen extends ConsumerWidget {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  _QuickActionButton(
-                    icon: Icons.person_add,
-                    label: 'Add Member',
-                    color: AppTheme.surfaceContainerHigh,
-                    iconColor: AppTheme.primary,
-                    onTap: () {
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        useSafeArea: true,
-                        backgroundColor: AppTheme.surfaceContainerLowest,
-                        builder: (_) => const MemberFormSheet(member: null),
-                      );
-                    },
-                  ),
-                  const SizedBox(width: 12),
-                  _QuickActionButton(
-                    icon: Icons.add_task,
-                    label: 'Create Task',
-                    color: AppTheme.surfaceContainerHigh,
-                    iconColor: AppTheme.primary,
-                    onTap: () {
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        useSafeArea: true,
-                        backgroundColor: AppTheme.surfaceContainerLowest,
-                        builder: (_) => const CreateTaskSheet(),
-                      );
-                    },
-                  ),
-                  const SizedBox(width: 12),
-                  _QuickActionButton(
-                    icon: Icons.campaign,
-                    label: 'Post Notice',
-                    color: AppTheme.surfaceContainerHigh,
-                    iconColor: AppTheme.primary,
-                    onTap: () {
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        useSafeArea: true,
-                        backgroundColor: AppTheme.surfaceContainerLowest,
-                        builder: (_) => const CreateNoticeSheet(),
-                      );
-                    },
-                  ),
+                  if (canAddMember)
+                    _QuickActionButton(
+                      icon: Icons.person_add,
+                      label: 'Add Member',
+                      color: AppTheme.surfaceContainerHigh,
+                      iconColor: AppTheme.primary,
+                      onTap: () {
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          useSafeArea: true,
+                          backgroundColor: AppTheme.surfaceContainerLowest,
+                          builder: (_) => const MemberFormSheet(member: null),
+                        );
+                      },
+                    ),
+                  if (canAddMember && (canCreateTask || canPostNotice)) const SizedBox(width: 12),
+                  if (canCreateTask)
+                    _QuickActionButton(
+                      icon: Icons.add_task,
+                      label: 'Create Task',
+                      color: AppTheme.surfaceContainerHigh,
+                      iconColor: AppTheme.primary,
+                      onTap: () {
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          useSafeArea: true,
+                          backgroundColor: AppTheme.surfaceContainerLowest,
+                          builder: (_) => const CreateTaskSheet(),
+                        );
+                      },
+                    ),
+                  if (canCreateTask && canPostNotice) const SizedBox(width: 12),
+                  if (canPostNotice)
+                    _QuickActionButton(
+                      icon: Icons.campaign,
+                      label: 'Post Notice',
+                      color: AppTheme.surfaceContainerHigh,
+                      iconColor: AppTheme.primary,
+                      onTap: () {
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          useSafeArea: true,
+                          backgroundColor: AppTheme.surfaceContainerLowest,
+                          builder: (_) => const CreateNoticeSheet(),
+                        );
+                      },
+                    ),
                 ],
               ),
               const SizedBox(height: 32),

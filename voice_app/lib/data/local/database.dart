@@ -200,6 +200,22 @@ class ActivitiesTable extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+/// Device-local alerts created from Supabase Realtime events. These are not
+/// synced back to Supabase: each phone keeps its own read/unread state.
+@DataClassName('AppNotification')
+class NotificationsTable extends Table {
+  TextColumn get id => text()();
+  TextColumn get type => text()();
+  TextColumn get title => text()();
+  TextColumn get body => text()();
+  TextColumn get relatedId => text().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get readAt => dateTime().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 // ── Database Class ────────────────────────────────────────────────
 
 @DriftDatabase(tables: [
@@ -216,12 +232,13 @@ class ActivitiesTable extends Table {
   OutboxOperations,
   AcknowledgementsTable,
   ActivitiesTable,
+  NotificationsTable,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration {
@@ -259,77 +276,11 @@ class AppDatabase extends _$AppDatabase {
         if (from < 10) {
           try { await m.createTable(activitiesTable); } catch (_) {}
         }
+        if (from < 11) {
+          await m.createTable(notificationsTable);
+        }
       },
     );
-  }
-
-  Future<void> seedInitialAdmin() async {
-    // 1. Create Roles
-    const pmRoleId = 'role-pm-001';
-    await into(rolesTable).insert(RolesTableCompanion.insert(
-      id: pmRoleId,
-      name: 'Project Manager',
-      description: const Value('Full system access.'),
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-    ), mode: InsertMode.insertOrIgnore);
-
-    const ocRoleId = 'role-oc-001';
-    await into(rolesTable).insert(RolesTableCompanion.insert(
-      id: ocRoleId,
-      name: 'Overall Coordinator',
-      description: const Value('System access.'),
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-    ), mode: InsertMode.insertOrIgnore);
-
-    const aocRoleId = 'role-aoc-001';
-    await into(rolesTable).insert(RolesTableCompanion.insert(
-      id: aocRoleId,
-      name: 'Assistant Overall Coordinator',
-      description: const Value('System access.'),
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-    ), mode: InsertMode.insertOrIgnore);
-
-    // 2. Create Permissions
-    const ackPermId = 'perm-ack-001';
-    await into(permissionsTable).insert(PermissionsTableCompanion.insert(
-      id: ackPermId,
-      permissionKey: 'manage_acknowledgements',
-      description: const Value('Can post new acknowledgements on the board'),
-    ), mode: InsertMode.insertOrIgnore);
-
-    await into(rolePermissionsTable).insert(RolePermissionsTableCompanion.insert(roleId: pmRoleId, permissionId: ackPermId), mode: InsertMode.insertOrIgnore);
-    await into(rolePermissionsTable).insert(RolePermissionsTableCompanion.insert(roleId: ocRoleId, permissionId: ackPermId), mode: InsertMode.insertOrIgnore);
-    await into(rolePermissionsTable).insert(RolePermissionsTableCompanion.insert(roleId: aocRoleId, permissionId: ackPermId), mode: InsertMode.insertOrIgnore);
-
-    // 3. Create Members
-    final membersToInsert = [
-      {'id': 'member-001', 'memberId': 'VO-001', 'name': 'HG Radhapad pankaj pr', 'roleId': pmRoleId},
-      {'id': 'member-002', 'memberId': 'VO-002', 'name': 'Piyush Jagzap', 'roleId': ocRoleId},
-      {'id': 'member-003', 'memberId': 'VO-003', 'name': 'Sajal Patil', 'roleId': aocRoleId},
-      {'id': 'member-004', 'memberId': 'VO-004', 'name': 'Soham Dode', 'roleId': null},
-      {'id': 'member-005', 'memberId': 'VO-005', 'name': 'Sushant Nikaju', 'roleId': null},
-      {'id': 'member-006', 'memberId': 'VO-006', 'name': 'Pratik Gadade', 'roleId': null},
-      {'id': 'member-007', 'memberId': 'VO-007', 'name': 'Mayur Patil', 'roleId': null},
-      {'id': 'member-008', 'memberId': 'VO-008', 'name': 'Aditya Deshmukh', 'roleId': null},
-      {'id': 'member-009', 'memberId': 'VO-009', 'name': 'Dinesh Dhanuka', 'roleId': null},
-      {'id': 'member-010', 'memberId': 'VO-010', 'name': 'Preet', 'roleId': null},
-    ];
-
-    for (final memberData in membersToInsert) {
-      await into(membersTable).insert(MembersTableCompanion.insert(
-        id: memberData['id'] as String,
-        memberId: Value(memberData['memberId'] as String),
-        pinHash: const Value('1234'), // Default PIN
-        name: memberData['name'] as String,
-        memberType: const Value('working'),
-        roleId: memberData['roleId'] == null ? const Value.absent() : Value(memberData['roleId'] as String),
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      ), mode: InsertMode.insertOrIgnore);
-    }
   }
 
   // Helpers to check if a record is pending sync

@@ -3,6 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/providers/app_providers.dart';
+import '../../../core/providers/auth_provider.dart';
+import '../../../data/local/database.dart';
+import '../auth/members_management_screen.dart';
+import '../tasks/create_task_sheet.dart';
+import 'self_edit_profile_sheet.dart';
 
 class MemberProfileScreen extends ConsumerWidget {
   final String name;
@@ -19,6 +24,29 @@ class MemberProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final membersList = ref.watch(membersStreamProvider).value ?? [];
+    final groupsList = ref.watch(groupsStreamProvider).value ?? [];
+    final authState = ref.watch(authProvider);
+
+    Member? actualMember;
+    if (memberId != null) {
+      actualMember = membersList.where((m) => m.id == memberId).firstOrNull;
+    }
+
+    String displayName = actualMember?.name ?? name;
+    String displayCollege = actualMember?.college ?? 'N/A';
+    String displayMemberType = (actualMember?.memberType ?? 'Student');
+    if (displayMemberType.isEmpty) displayMemberType = 'Student';
+    displayMemberType = displayMemberType[0].toUpperCase() + displayMemberType.substring(1);
+    
+    String displayYear = actualMember?.year ?? 'N/A';
+    String currentStatus = actualMember?.currentStatus ?? 'Present';
+
+    String displayGroupName = 'None';
+    if (actualMember?.groupId != null) {
+      final group = groupsList.where((g) => g.id == actualMember!.groupId).firstOrNull;
+      if (group != null) displayGroupName = group.name;
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -77,7 +105,7 @@ class MemberProfileScreen extends ConsumerWidget {
                             const Icon(Icons.school, size: 14, color: AppTheme.onSecondary),
                             const SizedBox(width: 4),
                             Text(
-                              'Student',
+                              displayMemberType,
                               style: const TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
@@ -92,7 +120,8 @@ class MemberProfileScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 24),
                 Text(
-                  name,
+                  displayName,
+                  textAlign: TextAlign.center,
                   style: theme.textTheme.displayLarge?.copyWith(
                     color: AppTheme.onSurface,
                     fontSize: 32,
@@ -100,7 +129,8 @@ class MemberProfileScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '2nd Year • Study Circle A • Core Volunteer',
+                  '$displayYear • $displayGroupName',
+                  textAlign: TextAlign.center,
                   style: theme.textTheme.bodyLarge?.copyWith(
                     color: AppTheme.onSurfaceVariant,
                   ),
@@ -119,14 +149,14 @@ class MemberProfileScreen extends ConsumerWidget {
                       Container(
                         width: 10,
                         height: 10,
-                        decoration: const BoxDecoration(
-                          color: AppTheme.secondary,
+                        decoration: BoxDecoration(
+                          color: currentStatus == 'Present' ? AppTheme.secondary : Colors.orange,
                           shape: BoxShape.circle,
                         ),
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        'Present',
+                        currentStatus,
                         style: theme.textTheme.labelLarge?.copyWith(
                           color: AppTheme.onSurface,
                         ),
@@ -161,9 +191,9 @@ class MemberProfileScreen extends ConsumerWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _DetailItem(label: 'COLLEGE', value: 'National Institute of Tech'),
+                            _DetailItem(label: 'INSTITUTION', value: displayCollege),
                             const SizedBox(height: 16),
-                            _DetailItem(label: 'MEMBER TYPE', value: 'Student'),
+                            _DetailItem(label: 'MEMBER TYPE', value: displayMemberType),
                           ],
                         ),
                       ),
@@ -172,9 +202,9 @@ class MemberProfileScreen extends ConsumerWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _DetailItem(label: 'YEAR', value: 'Sophomore (2nd)'),
+                            _DetailItem(label: 'YEAR', value: displayYear),
                             const SizedBox(height: 16),
-                            _DetailItem(label: 'GROUP', value: 'Study Circle A'),
+                            _DetailItem(label: 'GROUP', value: displayGroupName),
                           ],
                         ),
                       ),
@@ -190,46 +220,53 @@ class MemberProfileScreen extends ConsumerWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('Assigned Tasks', style: theme.textTheme.titleLarge),
-                TextButton(
-                  onPressed: () {},
-                  child: Text(
-                    'View All',
-                    style: theme.textTheme.labelLarge?.copyWith(color: AppTheme.primary),
+                if (memberId != null)
+                  TextButton(
+                    onPressed: () {},
+                    child: Text(
+                      'View All',
+                      style: theme.textTheme.labelLarge?.copyWith(color: AppTheme.primary),
+                    ),
                   ),
-                ),
               ],
             ),
             const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: _TaskCard(
-                    title: 'Prepare presentation for Sunday meeting',
-                    priority: 'High',
-                    dueDate: 'Oct 24',
-                    status: 'In Progress',
-                    icon: Icons.pending_actions,
-                    iconColor: AppTheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _TaskCard(
-                    title: 'Coordinate book distribution',
-                    priority: 'Normal',
-                    dueDate: 'Oct 20',
-                    status: 'Completed',
-                    icon: Icons.check_circle,
-                    iconColor: AppTheme.secondary,
-                    isCompleted: true,
-                  ),
-                ),
-              ],
-            ),
+            if (memberId == null)
+              const Text('No active assigned tasks.', style: TextStyle(color: AppTheme.onSurfaceVariant))
+            else
+              ref.watch(tasksStreamProvider).when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (err, _) => Center(child: Text('Error loading tasks: $err')),
+                data: (tasks) {
+                  final memberTasks = tasks.where((t) => t.assignedTo == memberId).take(2).toList();
+                  if (memberTasks.isEmpty) {
+                    return const Text('No active assigned tasks.', style: TextStyle(color: AppTheme.onSurfaceVariant));
+                  }
+                  return Row(
+                    children: memberTasks.map((task) {
+                      return Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: _TaskCard(
+                            title: task.title,
+                            priority: task.priority,
+                            dueDate: task.dueDate != null ? DateFormat('MMM d').format(DateTime.parse(task.dueDate!)) : 'No Date',
+                            status: task.status,
+                            icon: task.status == 'Completed' ? Icons.check_circle : Icons.pending_actions,
+                            iconColor: task.status == 'Completed' ? AppTheme.secondary : AppTheme.onSurfaceVariant,
+                            isCompleted: task.status == 'Completed',
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  );
+                },
+              ),
             const SizedBox(height: 24),
 
             // Acknowledgements Section
             Container(
+              width: double.infinity,
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
                 color: AppTheme.surfaceContainerLowest,
@@ -245,7 +282,7 @@ class MemberProfileScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 24),
                   if (memberId == null)
-                    const Text('No acknowledgements (Mock Member)', style: TextStyle(color: AppTheme.onSurfaceVariant))
+                    const Text('No acknowledgements yet.', style: TextStyle(color: AppTheme.onSurfaceVariant))
                   else
                     ref.watch(acknowledgementsStreamProvider).when(
                       loading: () => const Center(child: CircularProgressIndicator()),
@@ -299,34 +336,72 @@ class MemberProfileScreen extends ConsumerWidget {
             const SizedBox(height: 32),
 
             // Bottom Actions
-            if (!isSelf)
+            if (isSelf && actualMember != null)
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      useSafeArea: true,
+                      backgroundColor: AppTheme.surfaceContainerLowest,
+                      builder: (_) => SelfEditProfileSheet(member: actualMember!),
+                    );
+                  },
+                  icon: const Icon(Icons.edit),
+                  label: const Text('Edit Profile'),
+                ),
+              )
+            else if (!isSelf && actualMember != null)
               Column(
                 children: [
-                  ElevatedButton.icon(
-                    onPressed: () {},
-                    icon: const Icon(Icons.add_task),
-                    label: const Text('Assign Task'),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () {},
-                          icon: const Icon(Icons.group_add),
-                          label: const Text('Group'),
+                  if (authState.hasPermission('manage_tasks'))
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primary,
+                          foregroundColor: AppTheme.onPrimary,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         ),
+                        onPressed: () {
+                          showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            useSafeArea: true,
+                            backgroundColor: AppTheme.surfaceContainerLowest,
+                            builder: (_) => CreateTaskSheet(
+                              preSelectedAssigneeId: actualMember!.id,
+                              preSelectedAssigneeName: actualMember!.name,
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.add_task),
+                        label: const Text('Assign Task'),
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () {},
-                          icon: const Icon(Icons.edit),
-                          label: const Text('Edit'),
-                        ),
+                    ),
+                  if (authState.hasPermission('manage_members')) ...[
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            useSafeArea: true,
+                            backgroundColor: AppTheme.surfaceContainerLowest,
+                            builder: (_) => MemberFormSheet(member: actualMember!),
+                          );
+                        },
+                        icon: const Icon(Icons.edit),
+                        label: const Text('Edit Member'),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ],
               ),
           ],

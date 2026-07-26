@@ -81,6 +81,17 @@ class AppDrawer extends ConsumerWidget {
                   },
                 ),
                 ListTile(
+                  leading: const Icon(Icons.sync),
+                  title: const Text('Force Sync'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    ref.read(syncEngineProvider).syncNow();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Synchronization started...')),
+                    );
+                  },
+                ),
+                ListTile(
                   leading: const Icon(Icons.settings),
                   title: const Text('Settings'),
                   onTap: () {
@@ -108,7 +119,6 @@ class AppDrawer extends ConsumerWidget {
               ],
             ),
           ),
-          const Divider(height: 1),
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.red),
             title: const Text('Logout', style: TextStyle(color: Colors.red)),

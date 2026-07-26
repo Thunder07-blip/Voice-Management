@@ -47,8 +47,8 @@ class SupabaseSeedManager {
       // Step C: Insert 10 Members
       final members = [
         {
-          'id': 'member-001',
-          'member_id': 'VO-001',
+          'id': 'VV001',
+          'member_id': 'VV001',
           'pin_hash': '1234',
           'name': 'HG Radhapad pankaj pr',
           'member_type': 'working',
@@ -56,8 +56,8 @@ class SupabaseSeedManager {
           'current_status': 'Present'
         },
         {
-          'id': 'member-002',
-          'member_id': 'VO-002',
+          'id': 'VV002',
+          'member_id': 'VV002',
           'pin_hash': '1234',
           'name': 'Piyush Jagzap',
           'member_type': 'working',
@@ -65,8 +65,8 @@ class SupabaseSeedManager {
           'current_status': 'Present'
         },
         {
-          'id': 'member-003',
-          'member_id': 'VO-003',
+          'id': 'VV003',
+          'member_id': 'VV003',
           'pin_hash': '1234',
           'name': 'Sajal Patil',
           'member_type': 'working',
@@ -74,8 +74,8 @@ class SupabaseSeedManager {
           'current_status': 'Present'
         },
         {
-          'id': 'member-004',
-          'member_id': 'VO-004',
+          'id': 'VV004',
+          'member_id': 'VV004',
           'pin_hash': '1234',
           'name': 'Soham Dode',
           'member_type': 'working',
@@ -83,8 +83,8 @@ class SupabaseSeedManager {
           'current_status': 'Present'
         },
         {
-          'id': 'member-005',
-          'member_id': 'VO-005',
+          'id': 'VV005',
+          'member_id': 'VV005',
           'pin_hash': '1234',
           'name': 'Sushant Nikaju',
           'member_type': 'working',
@@ -92,8 +92,8 @@ class SupabaseSeedManager {
           'current_status': 'Present'
         },
         {
-          'id': 'member-006',
-          'member_id': 'VO-006',
+          'id': 'VV006',
+          'member_id': 'VV006',
           'pin_hash': '1234',
           'name': 'Pratik Gadade',
           'member_type': 'working',
@@ -101,8 +101,8 @@ class SupabaseSeedManager {
           'current_status': 'Present'
         },
         {
-          'id': 'member-007',
-          'member_id': 'VO-007',
+          'id': 'VV007',
+          'member_id': 'VV007',
           'pin_hash': '1234',
           'name': 'Mayur Patil',
           'member_type': 'working',
@@ -110,8 +110,8 @@ class SupabaseSeedManager {
           'current_status': 'Present'
         },
         {
-          'id': 'member-008',
-          'member_id': 'VO-008',
+          'id': 'VV008',
+          'member_id': 'VV008',
           'pin_hash': '1234',
           'name': 'Aditya Deshmukh',
           'member_type': 'working',
@@ -119,8 +119,8 @@ class SupabaseSeedManager {
           'current_status': 'Present'
         },
         {
-          'id': 'member-009',
-          'member_id': 'VO-009',
+          'id': 'VV009',
+          'member_id': 'VV009',
           'pin_hash': '1234',
           'name': 'Dinesh Dhanuka',
           'member_type': 'working',
@@ -128,8 +128,8 @@ class SupabaseSeedManager {
           'current_status': 'Present'
         },
         {
-          'id': 'member-010',
-          'member_id': 'VO-010',
+          'id': 'VV010',
+          'member_id': 'VV010',
           'pin_hash': '1234',
           'name': 'Preet',
           'member_type': 'working',
@@ -152,16 +152,16 @@ class SupabaseSeedManager {
       debugPrint('🧹 Cleaning Seed Data from Supabase...');
 
       final memberIds = [
-        'member-001',
-        'member-002',
-        'member-003',
-        'member-004',
-        'member-005',
-        'member-006',
-        'member-007',
-        'member-008',
-        'member-009',
-        'member-010'
+        'VV001',
+        'VV002',
+        'VV003',
+        'VV004',
+        'VV005',
+        'VV006',
+        'VV007',
+        'VV008',
+        'VV009',
+        'VV010'
       ];
 
       // Delete Members

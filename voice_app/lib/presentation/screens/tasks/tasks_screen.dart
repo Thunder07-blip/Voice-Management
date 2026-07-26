@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/providers/auth_provider.dart';
@@ -8,6 +9,7 @@ import '../app_drawer.dart';
 import 'tasks_history_screen.dart';
 import 'task_detail_screen.dart';
 import 'create_task_sheet.dart';
+import '../members/member_profile_screen.dart';
 
 class TasksScreen extends ConsumerStatefulWidget {
   const TasksScreen({super.key});
@@ -54,18 +56,40 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
       bool matchesFilter = true;
       if (_selectedFilter != 'All') {
         if (_selectedFilter == 'Pending') {
-          matchesFilter = task.status == 'Pending';
+          matchesFilter = task.status == 'pending';
         } else if (_selectedFilter == 'In Progress') {
-          matchesFilter = task.status == 'In Progress';
+          matchesFilter = task.status == 'in_progress';
         } else if (_selectedFilter == 'Completed') {
-          matchesFilter = task.status == 'Completed';
+          matchesFilter = task.status == 'completed';
         } else if (_selectedFilter == 'High Priority') {
-          matchesFilter = task.priority == 'High';
+          matchesFilter = task.priority == 'high';
         }
       }
 
       return matchesSearch && matchesFilter;
     }).toList();
+  }
+
+  Future<void> _saveTask(Task task) async {
+    final db = ref.read(databaseProvider);
+    await db.update(db.tasksTable).replace(task);
+    await ref.read(syncEngineProvider).queueOperation(
+      table: 'tasks',
+      operation: 'update',
+      data: {
+        'id': task.id,
+        'title': task.title,
+        'description': task.description,
+        'priority': task.priority,
+        'status': task.status,
+        'dueDate': task.dueDate,
+        'createdBy': task.createdBy,
+        'assignedTo': task.assignedTo,
+        'createdAt': task.createdAt.toIso8601String(),
+        'updatedAt': task.updatedAt.toIso8601String(),
+        'deletedAt': task.deletedAt?.toIso8601String(),
+      },
+    );
   }
 
   @override
@@ -100,15 +124,30 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
           ),
           Padding(
             padding: const EdgeInsets.only(right: 12),
-            child: CircleAvatar(
-              radius: 16,
-              backgroundColor: AppTheme.primaryContainer,
-              child: Text(
-                'S',
-                style: TextStyle(
-                  color: AppTheme.onPrimaryContainer,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
+            child: InkWell(
+              onTap: () {
+                if (authState.currentMember != null) {
+                  Navigator.push(context, MaterialPageRoute(
+                    builder: (_) => MemberProfileScreen(
+                      name: authState.currentMember!.name,
+                      memberId: authState.currentMember!.id,
+                      isSelf: true,
+                    ),
+                  ));
+                }
+              },
+              child: CircleAvatar(
+                radius: 16,
+                backgroundColor: AppTheme.primaryContainer,
+                child: Text(
+                  authState.currentMember?.name.isNotEmpty == true 
+                      ? authState.currentMember!.name[0].toUpperCase() 
+                      : 'U',
+                  style: TextStyle(
+                    color: AppTheme.onPrimaryContainer,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
                 ),
               ),
             ),
@@ -189,9 +228,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (err, stack) => Center(child: Text('Error: $err')),
               data: (allTasks) {
-                // If there are no tasks in Drift, we fallback to mock tasks for demonstration
-                // In production, we'd just show empty state.
-                final baseTasks = allTasks.isEmpty ? _convertMockTasks() : allTasks;
+                final baseTasks = allTasks;
                 final now = DateTime.now();
                 // Filter out tasks older than 30 days
                 final activeTasks = baseTasks.where((t) => now.difference(t.createdAt).inDays <= 30).toList();
@@ -213,9 +250,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                     // Check outbox to see if this task is pending sync
                     final isPendingSync = ref.watch(isPendingSyncProvider(task.id));
 
-                    final canToggle = authState.hasPermission('CREATE_TASK') || 
-                                      ['Project Manager', 'Overall Coordinator', 'Assistant Overall Coordinator']
-                                      .contains(authState.currentRole?.name) ||
+                    final canToggle = authState.hasPermission('manage_tasks') ||
                                       task.assignedTo == authState.currentMember?.id;
 
                     return Padding(
@@ -232,19 +267,20 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                           title: task.title,
                           description: task.description ?? '',
                           priority: task.priority,
-                          dueDate: task.dueDate ?? '',
+                          dueDate: task.dueDate != null && task.dueDate!.isNotEmpty 
+                              ? DateFormat('MMM d, yyyy').format(DateTime.parse(task.dueDate!)) 
+                              : 'No due date',
                           status: task.status,
-                          isCompleted: task.status == 'Completed',
+                          isCompleted: task.status == 'completed',
                           isPendingSync: isPendingSync,
                           canToggle: canToggle,
                           onToggle: canToggle ? () async {
-                            final db = ref.read(databaseProvider);
-                            final newStatus = task.status == 'Completed' ? 'Pending' : 'Completed';
+                            final newStatus = task.status == 'completed' ? 'pending' : 'completed';
                             final updated = task.copyWith(
                               status: newStatus,
                               updatedAt: DateTime.now(),
                             );
-                            await db.update(db.tasksTable).replace(updated);
+                            await _saveTask(updated);
                           } : null,
                         ),
                       ),
@@ -256,7 +292,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
           ),
         ],
       ),
-      floatingActionButton: authState.hasPermission('CREATE_TASK')
+      floatingActionButton: authState.hasPermission('manage_tasks')
           ? FloatingActionButton(
               onPressed: () {
                 showModalBottomSheet(
@@ -457,49 +493,4 @@ class _TaskListItem extends StatelessWidget {
       ),
     );
   }
-}
-
-// Mock data
-const _mockTasks = [
-  {
-    'title': 'Prepare Monthly Community Report',
-    'description': 'Compile all metrics from the last month regarding community engagement, event attendance, and budget usage. Needs review before Friday.',
-    'priority': 'High',
-    'dueDate': 'Tomorrow, 5:00 PM',
-    'status': 'In Progress',
-    'isCompleted': false,
-    'isPendingSync': false,
-  },
-  {
-    'title': 'Organize Weekend Workshop Material',
-    'description': 'Gather all handouts and projectors for the upcoming mindfulness workshop.',
-    'priority': 'Medium',
-    'dueDate': 'Oct 28',
-    'status': 'Pending',
-    'isCompleted': false,
-    'isPendingSync': true,
-  },
-  {
-    'title': 'Update Community Guidelines',
-    'description': '',
-    'priority': 'Medium',
-    'dueDate': 'Completed: Oct 24',
-    'status': 'Completed',
-    'isCompleted': true,
-    'isPendingSync': false,
-  },
-];
-
-// Helper to convert mock data to Drift Task objects for visual fallback
-List<Task> _convertMockTasks() {
-  return _mockTasks.map((t) => Task(
-    id: t['title'] as String,
-    title: t['title'] as String,
-    description: t['description'] as String,
-    priority: t['priority'] as String,
-    status: t['status'] as String,
-    dueDate: t['dueDate'] as String,
-    createdAt: DateTime.now(),
-    updatedAt: DateTime.now(),
-  )).toList();
 }

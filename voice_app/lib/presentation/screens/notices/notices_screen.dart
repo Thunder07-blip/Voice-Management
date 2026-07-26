@@ -15,10 +15,7 @@ class NoticesScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     final authState = ref.watch(authProvider);
     
-    final hasAdminPerms = authState.hasPermission('manage_notices') || 
-                          authState.currentRole?.name == 'Project Manager' || 
-                          authState.currentRole?.name == 'Overall Coordinator' || 
-                          authState.currentRole?.name == 'Assistant Overall Coordinator';
+    final hasAdminPerms = authState.hasPermission('manage_notices');
 
     final noticesAsync = ref.watch(noticesStreamProvider);
 
@@ -66,50 +63,97 @@ class NoticesScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        if (notice.department != null && notice.department!.isNotEmpty)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: AppTheme.primaryContainer,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              notice.department!,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.onPrimaryContainer,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  if (notice.department != null && notice.department!.isNotEmpty)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.primaryContainer,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        notice.department!,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppTheme.onPrimaryContainer,
+                                        ),
+                                      ),
+                                    )
+                                  else
+                                    const SizedBox.shrink(),
+                                  Text(
+                                    DateFormat('MMM d, yyyy').format(notice.createdAt),
+                                    style: theme.textTheme.labelMedium?.copyWith(
+                                      color: AppTheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                          )
-                        else
-                          const SizedBox.shrink(),
-                        Text(
-                          DateFormat('MMM d, yyyy').format(notice.createdAt),
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            color: AppTheme.onSurfaceVariant,
+                              if (notice.department != null && notice.department!.isNotEmpty)
+                                const SizedBox(height: 12),
+                              Text(
+                                notice.title,
+                                style: theme.textTheme.titleLarge?.copyWith(
+                                  color: AppTheme.onSurface,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                notice.content,
+                                style: theme.textTheme.bodyLarge?.copyWith(
+                                  color: AppTheme.onSurfaceVariant,
+                                  height: 1.5,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
+                        if (hasAdminPerms || notice.postedBy == authState.currentMember?.memberId)
+                          PopupMenuButton<String>(
+                            icon: const Icon(Icons.more_vert, color: AppTheme.onSurfaceVariant),
+                            onSelected: (value) async {
+                              if (value == 'edit') {
+                                showModalBottomSheet(
+                                  context: context,
+                                  isScrollControlled: true,
+                                  useSafeArea: true,
+                                  backgroundColor: AppTheme.surfaceContainerLowest,
+                                  builder: (_) => CreateNoticeSheet(notice: notice),
+                                );
+                              } else if (value == 'delete') {
+                                final db = ref.read(databaseProvider);
+                                final syncEngine = ref.read(syncEngineProvider);
+                                await (db.delete(db.noticesTable)..where((t) => t.id.equals(notice.id))).go();
+                                await syncEngine.queueOperation(
+                                  table: 'notices',
+                                  operation: 'delete',
+                                  data: {'id': notice.id},
+                                );
+                              }
+                            },
+                            itemBuilder: (context) => [
+                              const PopupMenuItem(
+                                value: 'edit',
+                                child: Text('Edit'),
+                              ),
+                              const PopupMenuItem(
+                                value: 'delete',
+                                child: Text('Delete', style: TextStyle(color: Colors.red)),
+                              ),
+                            ],
+                          ),
                       ],
-                    ),
-                    if (notice.department != null && notice.department!.isNotEmpty)
-                      const SizedBox(height: 12),
-                    Text(
-                      notice.title,
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        color: AppTheme.onSurface,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      notice.content,
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        color: AppTheme.onSurfaceVariant,
-                        height: 1.5,
-                      ),
                     ),
                   ],
                 ),

@@ -137,7 +137,7 @@ class StatusBanner extends ConsumerWidget {
 
                       if (confirm == true) {
                         final syncService = ref.read(leaveSyncServiceProvider);
-                        await syncService.confirmReturn(activeLeave);
+                        await syncService.markMemberAsReturned(memberId);
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('Welcome back! Meal planning is open.')),

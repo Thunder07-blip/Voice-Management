@@ -14,10 +14,10 @@ class RolesManagementScreen extends ConsumerStatefulWidget {
 }
 
 class _RolesManagementScreenState extends ConsumerState<RolesManagementScreen> {
-  void _showCreateRoleDialog() {
+  void _showRoleDialog({Role? role}) {
     showDialog(
       context: context,
-      builder: (context) => const _CreateRoleDialog(),
+      builder: (context) => _RoleDialog(role: role),
     );
   }
 
@@ -32,7 +32,7 @@ class _RolesManagementScreenState extends ConsumerState<RolesManagementScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            onPressed: _showCreateRoleDialog,
+            onPressed: () => _showRoleDialog(),
           ),
         ],
       ),
@@ -58,20 +58,29 @@ class _RolesManagementScreenState extends ConsumerState<RolesManagementScreen> {
                 child: ListTile(
                   title: Text(role.name, style: const TextStyle(fontWeight: FontWeight.bold)),
                   subtitle: Text(role.description ?? ''),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    onPressed: () async {
-                      // Delete Role logic (Offline outbox sync)
-                      final db = ref.read(databaseProvider);
-                      final syncEngine = ref.read(syncEngineProvider);
-                      
-                      await syncEngine.queueOperation(
-                        table: 'roles',
-                        operation: 'delete',
-                        data: {'id': role.id},
-                      );
-                      await db.rolesTable.deleteWhere((t) => t.id.equals(role.id));
-                    },
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.edit, color: Colors.blue),
+                        onPressed: () => _showRoleDialog(role: role),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        onPressed: () async {
+                          // Delete Role logic (Offline outbox sync)
+                          final db = ref.read(databaseProvider);
+                          final syncEngine = ref.read(syncEngineProvider);
+                          
+                          await (db.delete(db.rolesTable)..where((t) => t.id.equals(role.id))).go();
+                          await syncEngine.queueOperation(
+                            table: 'roles',
+                            operation: 'delete',
+                            data: {'id': role.id},
+                          );
+                        },
+                      ),
+                    ],
                   ),
                 ),
               );
@@ -83,25 +92,54 @@ class _RolesManagementScreenState extends ConsumerState<RolesManagementScreen> {
   }
 }
 
-class _CreateRoleDialog extends ConsumerStatefulWidget {
-  const _CreateRoleDialog();
+class _RoleDialog extends ConsumerStatefulWidget {
+  final Role? role;
+  const _RoleDialog({this.role});
 
   @override
-  ConsumerState<_CreateRoleDialog> createState() => _CreateRoleDialogState();
+  ConsumerState<_RoleDialog> createState() => _RoleDialogState();
 }
 
-class _CreateRoleDialogState extends ConsumerState<_CreateRoleDialog> {
+class _RoleDialogState extends ConsumerState<_RoleDialog> {
   final _nameController = TextEditingController();
 
   final List<String> _availablePermissions = [
-    'CREATE_TASKS',
-    'UPDATE_TASKS',
-    'DELETE_TASKS',
-    'POST_NOTICES',
-    'DELETE_NOTICES',
+    'manage_members',
+    'manage_roles',
+    'manage_leaves',
+    'manage_tasks',
+    'manage_notices',
+    'manage_meals',
+    'view_meals',
+    'manage_health',
+    'manage_acknowledgements',
   ];
 
   final Set<String> _selectedPermissions = {};
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.role != null) {
+      _nameController.text = widget.role!.name;
+      _loadExistingPermissions();
+    }
+  }
+
+  Future<void> _loadExistingPermissions() async {
+    final db = ref.read(databaseProvider);
+    final rolePerms = await (db.select(db.rolePermissionsTable)..where((t) => t.roleId.equals(widget.role!.id))).get();
+    final allPerms = await db.select(db.permissionsTable).get();
+    
+    setState(() {
+      for (final rp in rolePerms) {
+        final p = allPerms.where((p) => p.id == rp.permissionId).firstOrNull;
+        if (p != null) {
+          _selectedPermissions.add(p.permissionKey);
+        }
+      }
+    });
+  }
 
   void _saveRole() async {
     final name = _nameController.text.trim();
@@ -109,49 +147,71 @@ class _CreateRoleDialogState extends ConsumerState<_CreateRoleDialog> {
 
     final db = ref.read(databaseProvider);
     final syncEngine = ref.read(syncEngineProvider);
-    final roleId = const Uuid().v4();
+    final roleId = widget.role?.id ?? const Uuid().v4();
+    final isNew = widget.role == null;
+    final now = DateTime.now();
 
-    // Insert Role
+    // Upsert Role
     final roleData = {
       'id': roleId,
       'name': name,
+      'description': null,
+      if (isNew) 'createdAt': now.toIso8601String(),
+      'updatedAt': now.toIso8601String(),
     };
 
-    await syncEngine.queueOperation(
-      table: 'roles',
-      operation: 'insert',
-      data: roleData,
-    );
-
-    await db.into(db.rolesTable).insert(
+    await db.into(db.rolesTable).insertOnConflictUpdate(
       RolesTableCompanion.insert(
         id: roleId,
         name: name,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
+        createdAt: isNew ? now : widget.role!.createdAt,
+        updatedAt: now,
       ),
     );
+    await syncEngine.queueOperation(
+      table: 'roles',
+      operation: isNew ? 'insert' : 'update',
+      data: roleData,
+    );
+
+    // Delete existing permissions for this role if editing
+    if (!isNew) {
+      await (db.delete(db.rolePermissionsTable)..where((t) => t.roleId.equals(roleId))).go();
+      // In a real robust sync we would compute a diff. For now we can queue a delete via REST or just queue inserts and rely on backend resolving.
+      // Easiest is to queue a delete for all role permissions for this role, but SyncEngine outbox expects exact ID deletes. 
+      // We will assume backend handles upsert merging gracefully.
+    }
 
     // Insert Permissions
     for (final perm in _selectedPermissions) {
-      // In a robust system, we would lookup the actual permission ID from PermissionsTable.
-      // For MVP, we can insert or use the permission string itself as the ID since it acts like an ENUM.
-      // But the schema specifies permissionId. Let's create it if it doesn't exist.
-      
-      final permId = const Uuid().v4();
-      await db.into(db.permissionsTable).insert(
-        PermissionsTableCompanion.insert(
-          id: permId,
-          permissionKey: perm,
-        ),
-        mode: drift.InsertMode.insertOrIgnore,
-      );
+      final existing = await (db.select(db.permissionsTable)
+            ..where((item) => item.permissionKey.equals(perm)))
+          .getSingleOrNull();
+      final permId = existing?.id ?? const Uuid().v4();
+      if (existing == null) {
+        await db.into(db.permissionsTable).insert(
+          PermissionsTableCompanion.insert(
+            id: permId,
+            permissionKey: perm,
+          ),
+        );
+        await syncEngine.queueOperation(
+          table: 'permissions',
+          operation: 'insert',
+          data: {'id': permId, 'permissionKey': perm, 'description': null},
+        );
+      }
       
       await db.into(db.rolePermissionsTable).insert(
         RolePermissionsTableCompanion.insert(
           roleId: roleId,
           permissionId: permId,
         ),
+      );
+      await syncEngine.queueOperation(
+        table: 'role_permissions',
+        operation: 'insert',
+        data: {'roleId': roleId, 'permissionId': permId},
       );
     }
 
@@ -161,7 +221,7 @@ class _CreateRoleDialogState extends ConsumerState<_CreateRoleDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Create New Role'),
+      title: Text(widget.role == null ? 'Create New Role' : 'Edit Role'),
       content: SizedBox(
         width: double.maxFinite,
         child: Column(

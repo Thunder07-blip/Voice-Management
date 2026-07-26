@@ -22,12 +22,29 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
     setState(() => _isUpdating = true);
     try {
       final db = ref.read(databaseProvider);
-      final newStatus = widget.task.status == 'Completed' ? 'Pending' : 'Completed';
+      final newStatus = widget.task.status == 'completed' ? 'pending' : 'completed';
       final updated = widget.task.copyWith(
         status: newStatus,
         updatedAt: DateTime.now(),
       );
       await db.update(db.tasksTable).replace(updated);
+      await ref.read(syncEngineProvider).queueOperation(
+        table: 'tasks',
+        operation: 'update',
+        data: {
+          'id': updated.id,
+          'title': updated.title,
+          'description': updated.description,
+          'priority': updated.priority,
+          'status': updated.status,
+          'dueDate': updated.dueDate,
+          'createdBy': updated.createdBy,
+          'assignedTo': updated.assignedTo,
+          'createdAt': updated.createdAt.toIso8601String(),
+          'updatedAt': updated.updatedAt.toIso8601String(),
+          'deletedAt': updated.deletedAt?.toIso8601String(),
+        },
+      );
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
@@ -58,6 +75,11 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
     if (confirm == true) {
       final db = ref.read(databaseProvider);
       await (db.delete(db.tasksTable)..where((t) => t.id.equals(widget.task.id))).go();
+      await ref.read(syncEngineProvider).queueOperation(
+        table: 'tasks',
+        operation: 'delete',
+        data: {'id': widget.task.id},
+      );
       if (mounted) Navigator.pop(context);
     }
   }
@@ -74,9 +96,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
     final assignedToName = assignedToMember?.name ?? 'Unassigned';
 
     final authState = ref.watch(authProvider);
-    final canManageTask = authState.hasPermission('CREATE_TASK') || 
-                          ['Project Manager', 'Overall Coordinator', 'Assistant Overall Coordinator']
-                          .contains(authState.currentRole?.name) ||
+    final canManageTask = authState.hasPermission('manage_tasks') ||
                           widget.task.assignedTo == authState.currentMember?.id;
 
     return Scaffold(
@@ -116,13 +136,13 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                   decoration: BoxDecoration(
-                    color: widget.task.status == 'Completed' ? AppTheme.secondaryContainer : AppTheme.surfaceContainerHighest,
+                    color: widget.task.status == 'completed' ? AppTheme.secondaryContainer : AppTheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Text(
                     widget.task.status.toUpperCase(),
                     style: TextStyle(
-                      color: widget.task.status == 'Completed' ? AppTheme.onSecondaryContainer : AppTheme.onSurfaceVariant, 
+                      color: widget.task.status == 'completed' ? AppTheme.onSecondaryContainer : AppTheme.onSurfaceVariant, 
                       fontSize: 11, 
                       fontWeight: FontWeight.w600
                     ),
@@ -192,7 +212,9 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                           const Text('Due Date', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppTheme.onSurface)),
                           const SizedBox(height: 4),
                           Text(
-                            widget.task.dueDate?.isNotEmpty == true ? widget.task.dueDate! : 'No due date',
+                            widget.task.dueDate?.isNotEmpty == true 
+                                ? DateFormat('MMM d, yyyy').format(DateTime.parse(widget.task.dueDate!)) 
+                                : 'No due date',
                             style: const TextStyle(fontSize: 14, color: AppTheme.onSurfaceVariant),
                           ),
                         ],
@@ -241,14 +263,14 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                   onPressed: _isUpdating ? null : _toggleStatus,
                   icon: _isUpdating 
                     ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : Icon(widget.task.status == 'Completed' ? Icons.undo : Icons.check_circle),
+                    : Icon(widget.task.status == 'completed' ? Icons.undo : Icons.check_circle),
                   label: Text(
-                    widget.task.status == 'Completed' ? 'Mark as Pending' : 'Mark Completed',
+                    widget.task.status == 'completed' ? 'Mark as Pending' : 'Mark Completed',
                     style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
                   ),
                   style: FilledButton.styleFrom(
-                    backgroundColor: widget.task.status == 'Completed' ? AppTheme.secondary : AppTheme.primaryContainer,
-                    foregroundColor: widget.task.status == 'Completed' ? AppTheme.onSecondary : AppTheme.onPrimaryContainer,
+                    backgroundColor: widget.task.status == 'completed' ? AppTheme.secondary : AppTheme.primaryContainer,
+                    foregroundColor: widget.task.status == 'completed' ? AppTheme.onSecondary : AppTheme.onPrimaryContainer,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
                 ),
