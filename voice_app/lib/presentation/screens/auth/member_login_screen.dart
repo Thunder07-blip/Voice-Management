@@ -86,7 +86,7 @@ class _MemberLoginScreenState extends ConsumerState<MemberLoginScreen> {
               TextField(
                 controller: _idController,
                 decoration: InputDecoration(
-                  labelText: 'Member ID (e.g. VO-001)',
+                  labelText: 'Member ID (e.g. VV001)',
                   filled: true,
                   fillColor: AppTheme.surfaceContainerLowest,
                   border: OutlineInputBorder(
